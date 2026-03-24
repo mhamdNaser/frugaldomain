@@ -33,6 +33,13 @@ class UserController extends Controller
         ]);
     }
 
+
+    public function all()
+    {
+        $data =  $this->repos->all();
+        return response()->json($data);
+    }
+
     /**
      * Store a newly created resource in storage.
      */
@@ -61,12 +68,13 @@ class UserController extends Controller
         return response()->json(['message' => 'User not found'], 404);
     }
 
-    public function changStatus($id){
+    public function changStatus($id)
+    {
         $user = $this->repos->toggleStatus($id);
 
         return response()->json([
-            'message'=> 'User Status Updated',
-            'data'=> $user
+            'message' => 'User Status Updated',
+            'data' => $user
         ]);
     }
 

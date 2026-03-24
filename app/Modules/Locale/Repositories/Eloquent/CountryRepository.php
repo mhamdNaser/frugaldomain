@@ -36,10 +36,17 @@ class CountryRepository implements CountryRepositoryInterface
 
         return $this->paginate($items, $rowsPerPage, $page);
         return $this->model
-        ->select('id', 'name')
-        ->orderBy('name')
-        ->get();
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
     }
+
+    public function allcountries()
+    {
+        return $this->model::all();
+    }
+
+
 
     public function storeCountry(StoreLocationRequest $request)
     {

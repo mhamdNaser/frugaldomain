@@ -16,17 +16,19 @@ class UserRepository implements UserRepositoryInterface
     use ManageFiles;
 
     protected $model;
+    protected $cacheKey;
 
     public function __construct(User $user)
     {
         $this->model = $user;
+        $this->cacheKey = "all_Users";
     }
 
     public function getAllUsers($search = null, $rowsPerPage = 10, $page = 1)
     {
-        $cacheKey = "all_Users";
 
-        $items = Cache::remember($cacheKey, 60, function () {
+
+        $items = Cache::remember($this->cacheKey, 60, function () {
             return $this->model::orderBy('id', 'desc')->get();
         });
 
@@ -40,7 +42,7 @@ class UserRepository implements UserRepositoryInterface
 
     public function all()
     {
-        return $this->model::latest()->get();
+        return $this->model::select('id', 'name')->get();
     }
 
     public function find($id)
@@ -50,7 +52,7 @@ class UserRepository implements UserRepositoryInterface
 
     public function create($data)
     {
-        Cache::forget('all_Users');
+        Cache::forget($this->cacheKey);
 
         $roleId = $data['role_id'] ?? null;
         unset($data['role_id']);
@@ -70,7 +72,7 @@ class UserRepository implements UserRepositoryInterface
 
     public function update($id, array $data)
     {
-        Cache::forget('all_Users');
+        Cache::forget($this->cacheKey);
         $user = $this->find($id);
 
         $roleId = $data['role_id'] ?? null;
@@ -101,7 +103,7 @@ class UserRepository implements UserRepositoryInterface
     public function toggleStatus($id)
     {
         $user = $this->find($id);
-        Cache::forget('all_Users');
+        Cache::forget($this->cacheKey);
         $user->status = !$user->status;
 
         $user->save();
@@ -110,7 +112,7 @@ class UserRepository implements UserRepositoryInterface
 
     public function delete($id): bool
     {
-        Cache::forget('all_Users');
+        Cache::forget($this->cacheKey);
         $user = $this->find($id);
         if ($user) {
             return $user->delete();
@@ -120,7 +122,7 @@ class UserRepository implements UserRepositoryInterface
 
     public function deleteArray(array $ids): bool
     {
-        Cache::forget('all_Users');
+        Cache::forget($this->cacheKey);
         return $this->model::whereIn('id', $ids)->delete();
     }
 }

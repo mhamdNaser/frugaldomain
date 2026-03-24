@@ -24,6 +24,7 @@ class UserResource extends JsonResource
             'image' => $this->image,
             'status' => $this->status,
             'is_active' => $this->is_active,
+            'has_store' => $this->hasStore(),
             'roles' => $this->getRoleNames(), // ترجع كل الأدوار كـ array
             'permissions' => $this->getAllPermissions()->pluck('name'), // كل الصلاحيات
             'created_at' => $this->created_at?->toDateTimeString(),
@@ -39,6 +40,16 @@ class UserResource extends JsonResource
                 'id'    => $this->city?->id,
                 'name'  => $this->city?->name
             ],
+            'store' => $this->store ? [
+                'id' => $this->store->id,
+                'name' => $this->store->name,
+                'email' => $this->store->email,
+                'currency' => $this->store->currency,
+                'timezone' => $this->store->timezone,
+                'shopify_domain' => $this->store->shopify_domain,
+                'shopify_store_id' => $this->store->shopify_store_id,
+                'created_at' => $this->store->created_at?->toDateTimeString(),
+            ] : null,
         ];
     }
 }

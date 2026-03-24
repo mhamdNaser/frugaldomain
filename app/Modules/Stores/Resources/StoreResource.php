@@ -17,6 +17,7 @@ class StoreResource extends JsonResource
             'email' => $this->email,
             'plan' => $this->shopify_domain,
             'currency' => $this->currency,
+            'status' => $this->status,
         ];
     }
 }

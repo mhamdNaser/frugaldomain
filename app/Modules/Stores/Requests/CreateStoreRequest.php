@@ -32,7 +32,6 @@ class CreateStoreRequest extends FormRequest
             'email'                 => 'required|string|min:8',
             'currency'              => 'required|string|max:255',
             'timezone'              => 'required|string|max:255',
-            'status'                => 'required|string|max:255',
         ];
     }
 

@@ -41,7 +41,7 @@ Route::prefix('admin')->group(function () {
 
         Route::controller(UserController::class)->group(function () {
             Route::post('all-users', 'index')->name('users');
-            Route::get('all-users', 'allPermissions')->name('all-users');
+            Route::get('all-users', 'all')->name('all-users');
             Route::patch('users/{id}/status', 'changStatus')->name('changestatus-user');
             Route::get('user/{id}', 'show')->name('selected-user');
             Route::post('users', 'store')->name('store-user');

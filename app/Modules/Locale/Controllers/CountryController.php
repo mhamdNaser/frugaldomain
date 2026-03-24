@@ -7,7 +7,6 @@ use App\Modules\Locale\Repositories\Interfaces\CountryRepositoryInterface;
 use App\Modules\Locale\Requests\StoreLocationRequest;
 use App\Modules\Locale\Resources\CountriesResource;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\LengthAwarePaginator;
 
 class CountryController extends Controller
 {
@@ -20,7 +19,7 @@ class CountryController extends Controller
 
     public function index()
     {
-        return $this->repos->all();
+        return $this->repos->allcountries();
     }
 
     public function allCountry(Request $request)

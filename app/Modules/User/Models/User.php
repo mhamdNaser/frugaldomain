@@ -7,6 +7,7 @@ namespace App\Modules\User\Models;
 use App\Modules\Locale\Models\City;
 use App\Modules\Locale\Models\Country;
 use App\Modules\Locale\Models\State;
+use App\Modules\Stores\Models\Store;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -84,6 +85,16 @@ class User extends Authenticatable
     public function city()
     {
         return $this->belongsTo(City::class);
+    }
+
+    public function store()
+    {
+        return $this->hasOne(Store::class, 'owner_id');
+    }
+
+    public function hasStore(): bool
+    {
+        return $this->store()->exists();
     }
 
     // public function canAccessPanel(Panel $panel): bool
