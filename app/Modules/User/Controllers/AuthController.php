@@ -36,28 +36,28 @@ class AuthController extends Controller
     /**
      * ✅ Login لأي مستخدم (Token-based)
      */
-    // public function userLogin(LoginRequest $request)
-    // {
-    //     $credentials = $request->validated();
+    public function userLogin(LoginRequest $request)
+    {
+        $credentials = $request->validated();
 
-    //     $user = User::where('email', $credentials['email'])->first();
+        $user = User::where('email', $credentials['email'])->first();
 
-    //     if (!$user || !Hash::check($credentials['password'], $user->password)) {
-    //         return response()->json(['message' => 'Invalid credentials'], 401);
-    //     }
+        if (!$user || !Hash::check($credentials['password'], $user->password)) {
+            return response()->json(['message' => 'Invalid credentials'], 401);
+        }
 
-    //     // حذف التوكنات القديمة (اختياري)
-    //     $user->tokens()->delete();
+        // حذف التوكنات القديمة (اختياري)
+        $user->tokens()->delete();
 
-    //     // إنشاء توكن جديد
-    //     $token = $user->createToken('api_token')->plainTextToken;
+        // إنشاء توكن جديد
+        $token = $user->createToken('api_token')->plainTextToken;
 
-    //     return response()->json([
-    //         'message' => 'Login successful',
-    //         'user' => new UserResource($user),
-    //         'token' => $token,
-    //     ]);
-    // }
+        return response()->json([
+            'message' => 'Login successful',
+            'user' => new UserResource($user),
+            'token' => $token,
+        ]);
+    }
 
     /**
      * ✅ Login للأدمن فقط (Token-based)
@@ -76,34 +76,29 @@ class AuthController extends Controller
             ], 401);
         }
 
+        $allowedRoles = ['admin'];
+        // $allowedRoles = ['admin', 'partner'];
 
-        if (!$user->hasRole('admin')) {
+        if (!$user->hasAnyRole($allowedRoles)) {
             return response()->json([
-                'message' => 'You are not authorized as admin'
+                'message' => 'You are not authorized to access this panel'
             ], 403);
         }
 
         $user->tokens()->delete();
-        $token = $user->createToken('admin_token', ['role:admin'])->plainTextToken;
+
+        $tokenAbilities = $user->roles
+            ->pluck('name')
+            ->filter(fn($role) => in_array($role, $allowedRoles))
+            ->map(fn($role) => 'role:' . $role)
+            ->values()
+            ->toArray();
+
+        $token = $user->createToken('panel_token', $tokenAbilities)->plainTextToken;
 
         return response()->json([
-            'message' => 'Admin login successful',
+            'message' => 'Login successful',
             'user' => new LoginResource($user),
-            'token' => $token,
-        ]);
-
-        // فحص إذا عنده role "admin"
-        if (!$user->hasAnyRole(['admin','partner'])) {
-            return response()->json(['message' => 'You are not authorized as admin'], 403);
-        }
-
-        // حذف أي توكنات قديمة وإنشاء توكن جديد
-        $user->tokens()->delete();
-        $token = $user->createToken('admin_token', ['role:admin'])->plainTextToken;
-
-        return response()->json([
-            'message' => 'Admin login successful',
-            'user' => new UserResource($user),
             'token' => $token,
         ]);
     }

@@ -1,49 +1,44 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Modules\Stores\Controllers;
 
-use App\Models\StoreBranding;
-use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
+use App\Modules\Stores\Repositories\Interfaces\StoreBrandingsRepositoryInterface;
+use App\Modules\Stores\Requests\StoreBrandingsIndexRequest;
+use App\Modules\Stores\Resources\StoreBrandingTableResource;
 
 class StoreBrandingController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
-    }
+    public function __construct(
+        protected StoreBrandingsRepositoryInterface $repo
+    ) {}
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    public function index(StoreBrandingsIndexRequest $request)
     {
-        //
-    }
+        $data = $request->validated();
+        $result = $this->repo->all(
+            $data['search'] ?? null,
+            (int) ($data['rowsPerPage'] ?? 10),
+            (int) ($data['page'] ?? 1),
+            $data['store_id'] ?? null,
+        );
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(StoreBranding $storeBranding)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, StoreBranding $storeBranding)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(StoreBranding $storeBranding)
-    {
-        //
+        return response()->json([
+            'data' => StoreBrandingTableResource::collection($result->items()),
+            'meta' => [
+                'total' => $result->total(),
+                'per_page' => $result->perPage(),
+                'current_page' => $result->currentPage(),
+                'last_page' => $result->lastPage(),
+                'from' => $result->firstItem(),
+                'to' => $result->lastItem(),
+            ],
+            'links' => [
+                'first' => $result->url(1),
+                'last' => $result->url($result->lastPage()),
+                'prev' => $result->previousPageUrl(),
+                'next' => $result->nextPageUrl(),
+            ],
+        ]);
     }
 }

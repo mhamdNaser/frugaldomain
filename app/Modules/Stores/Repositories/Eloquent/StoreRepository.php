@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use App\Traits\PaginatesCollection;
 use App\Traits\ManageFiles;
+use Illuminate\Support\Facades\Crypt;
 use Spatie\Permission\Models\Role;
 
 class StoreRepository implements StoreRepositoryInterface
@@ -48,7 +49,7 @@ class StoreRepository implements StoreRepositoryInterface
     {
         Cache::forget($this->cacheKey);
 
-        $data['shopify_access_token'] = Hash::make($data['shopify_access_token']);
+        $data['shopify_access_token'] = Crypt::encryptString($data['shopify_access_token']);
 
         $Store = $this->model::create($data);
         return $Store;

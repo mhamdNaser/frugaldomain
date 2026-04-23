@@ -1,0 +1,169 @@
+{
+  "dashboard": [
+    {
+      "menu": "Store Management",
+      "subMenus": [
+        {
+          "name": "Store & Account",
+          "mainTables": ["stores"],
+          "eyeChildrenTables": ["store_settings", "store_brandings", "shopify_stores", "api_logs", "webhook_logs"]
+        },
+        {
+          "name": "Plans & Subscriptions",
+          "mainTables": ["plans"],
+          "eyeChildrenTables": ["plan_features", "subscriptions", "payment_intents", "payment_methods"]
+        },
+        {
+          "name": "Users & Permissions",
+          "mainTables": ["users"],
+          "eyeChildrenTables": ["model_has_roles", "model_has_permissions", "roles", "permissions", "role_has_permissions"]
+        }
+      ]
+    },
+    {
+      "menu": "Catalog",
+      "subMenus": [
+        {
+          "name": "Products",
+          "mainTables": ["products"],
+          "eyeChildrenTables": ["product_variants", "product_media", "product_options", "product_selling_plan_groups", "collection_products", "variant_option_values"]
+        },
+        {
+          "name": "Categories, Vendors & Types",
+          "mainTables": ["categories", "vendors", "product_types", "collections"],
+          "eyeChildrenTables": ["products", "collection_products"]
+        },
+        {
+          "name": "Options",
+          "mainTables": ["options"],
+          "eyeChildrenTables": ["option_values", "product_options", "variant_option_values"]
+        },
+        {
+          "name": "Meta & Definitions",
+          "mainTables": ["metafields", "metaobjects", "metaobject_definitions"],
+          "eyeChildrenTables": ["metafield_metaobjects", "metaobject_definition_fields"]
+        }
+      ]
+    },
+    {
+      "menu": "Orders & Fulfillment",
+      "subMenus": [
+        {
+          "name": "Orders",
+          "mainTables": ["orders"],
+          "eyeChildrenTables": ["order_items", "order_channels", "order_duties", "order_risks", "payment_transactions", "fulfillments", "fulfillment_orders", "order_returns"]
+        },
+        {
+          "name": "Returns & Exchanges",
+          "mainTables": ["order_returns"],
+          "eyeChildrenTables": ["order_return_items", "exchanges", "reverse_fulfillments", "refunds", "refund_items"]
+        },
+        {
+          "name": "Fulfillment & Shipping",
+          "mainTables": ["fulfillment_services", "fulfillment_orders", "fulfillments"],
+          "eyeChildrenTables": ["fulfillment_order_items", "fulfillment_items", "fulfillment_tracking"]
+        }
+      ]
+    },
+    {
+      "menu": "Customers",
+      "subMenus": [
+        {
+          "name": "Customers",
+          "mainTables": ["customers"],
+          "eyeChildrenTables": ["customer_addresses", "customer_marketing_consents", "devices", "app_sessions", "carts", "orders", "selling_plan_subscriptions"]
+        },
+        {
+          "name": "Carts",
+          "mainTables": ["carts"],
+          "eyeChildrenTables": ["cart_items", "abandoned_checkouts"]
+        },
+        {
+          "name": "Loyalty",
+          "mainTables": ["frames"],
+          "eyeChildrenTables": ["points", "gestures"]
+        }
+      ]
+    },
+    {
+      "menu": "Inventory & Pricing",
+      "subMenus": [
+        {
+          "name": "Inventory",
+          "mainTables": ["locations", "inventories"],
+          "eyeChildrenTables": ["inventory_levels", "inventory_movements"]
+        },
+        {
+          "name": "Markets & Price Lists",
+          "mainTables": ["markets", "price_lists"],
+          "eyeChildrenTables": ["price_list_items"]
+        },
+        {
+          "name": "Shipping & Taxes",
+          "mainTables": ["shipping_zones", "tax_rates"],
+          "eyeChildrenTables": ["shipping_rates", "shipping_methods", "tax_lines"]
+        }
+      ]
+    },
+    {
+      "menu": "Content",
+      "subMenus": [
+        {
+          "name": "Blog & Pages",
+          "mainTables": ["blogs", "articles", "pages"],
+          "eyeChildrenTables": ["comments", "files"]
+        },
+        {
+          "name": "Navigation",
+          "mainTables": ["menus"],
+          "eyeChildrenTables": ["menu_items"]
+        }
+      ]
+    },
+    {
+      "menu": "Icon Library",
+      "subMenus": [
+        {
+          "name": "Icons",
+          "mainTables": ["icons"],
+          "eyeChildrenTables": ["icon_files", "icon_downloads"]
+        },
+        {
+          "name": "Icon Categories",
+          "mainTables": ["icon_categories"],
+          "eyeChildrenTables": ["icons"]
+        }
+      ]
+    },
+    {
+      "menu": "Sync & Integrations",
+      "subMenus": [
+        {
+          "name": "Synchronization",
+          "mainTables": ["sync_runs"],
+          "eyeChildrenTables": ["sync_jobs", "sync_errors", "sync_metas"]
+        },
+        {
+          "name": "Webhooks & Logs",
+          "mainTables": ["webhook_subscriptions", "webhook_logs"],
+          "eyeChildrenTables": ["api_logs"]
+        }
+      ]
+    },
+    {
+      "menu": "System Reference",
+      "subMenus": [
+        {
+          "name": "Reference Tables",
+          "mainTables": ["countries", "states", "cities", "languages"],
+          "eyeChildrenTables": []
+        },
+        {
+          "name": "Internal Runtime Tables",
+          "mainTables": ["migrations", "jobs", "job_batches", "failed_jobs", "cache", "cache_locks", "sessions", "personal_access_tokens", "password_reset_tokens"],
+          "eyeChildrenTables": []
+        }
+      ]
+    }
+  ]
+}

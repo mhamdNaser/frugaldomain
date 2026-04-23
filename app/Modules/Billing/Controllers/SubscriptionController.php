@@ -1,49 +1,61 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Modules\Billing\Controllers;
 
-use App\Models\Subscription;
-use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
+use App\Modules\Billing\Repositories\Interfaces\SubscriptionsRepositoryInterface;
+use App\Modules\Billing\Requests\SubscriptionsIndexRequest;
+use App\Modules\Billing\Requests\UpdateSubscriptionRequest;
+use App\Modules\Billing\Resources\SubscriptionTableResource;
 
 class SubscriptionController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    public function __construct(
+        protected SubscriptionsRepositoryInterface $repo
+    ) {}
+
+    public function index(SubscriptionsIndexRequest $request)
     {
-        //
+        $data = $request->validated();
+        $result = $this->repo->all(
+            $data['search'] ?? null,
+            $data['rowsPerPage'] ?? 10,
+            $data['page'] ?? 1,
+            $data['store_id'] ?? null,
+            $data['plan_id'] ?? null,
+        );
+
+        return response()->json([
+            'data' => SubscriptionTableResource::collection($result->items()),
+            'meta' => [
+                'total' => $result->total(),
+                'per_page' => $result->perPage(),
+                'current_page' => $result->currentPage(),
+                'last_page' => $result->lastPage(),
+                'from' => $result->firstItem(),
+                'to' => $result->lastItem(),
+            ],
+            'links' => [
+                'first' => $result->url(1),
+                'last' => $result->url($result->lastPage()),
+                'prev' => $result->previousPageUrl(),
+                'next' => $result->nextPageUrl(),
+            ],
+        ]);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    public function show($id)
     {
-        //
+        return response()->json([
+            'data' => new SubscriptionTableResource($this->repo->findForFrontend((int) $id)),
+        ]);
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Subscription $subscription)
+    public function update(UpdateSubscriptionRequest $request, $id)
     {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Subscription $subscription)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Subscription $subscription)
-    {
-        //
+        return response()->json([
+            'message' => 'Subscription updated successfully',
+            'data' => new SubscriptionTableResource($this->repo->update((int) $id, $request->validated())),
+        ]);
     }
 }

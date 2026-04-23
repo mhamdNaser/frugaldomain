@@ -26,4 +26,9 @@ class IconFiles extends Model
     {
         return $this->belongsTo(Icon::class, 'icon_id');
     }
+
+    public function downloads()
+    {
+        return $this->hasMany(IconDownloads::class, 'icon_file_id');
+    }
 }

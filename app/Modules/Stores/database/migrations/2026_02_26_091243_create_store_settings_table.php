@@ -18,6 +18,8 @@ return new class extends Migration
             $table->boolean('enable_cod')->default(false);
             $table->boolean('enable_stripe')->default(false);
             $table->boolean('tax_included')->default(false);
+            $table->string('currency_format')->nullable();
+            $table->string('weight_unit')->nullable();
             $table->string('default_language')->default('en');
             $table->boolean('push_notifications_enabled')->default(false);
             $table->json('extra_settings')->nullable();

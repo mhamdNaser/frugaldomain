@@ -16,7 +16,8 @@
         "laravel/framework": "^12.0",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.10.1",
-        "spatie/laravel-permission": "^6.21"
+        "spatie/laravel-permission": "^6.21",
+        "webklex/laravel-imap": "^6.2"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
@@ -62,6 +63,9 @@
         "dev": [
             "Composer\\Config::disableProcessTimeout",
             "npx concurrently -c \"#93c5fd,#c4b5fd,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"npm run dev\" --names='server,queue,vite'"
+        ],
+        "queue:shopify": [
+            "@php artisan queue:work database --queue=default,shopify-sync,shopify-variants,shopify-images,shopify-inventory,shopify-metafields,shopify-collections,shopify-files,shopify-customers,shopify-orders,shopify-draft-orders,shopify-fulfillments,shopify-financials,shopify-discounts,shopify-content --sleep=1 --tries=3 --timeout=3600 --memory=256"
         ],
         "test": [
             "@php artisan config:clear --ansi",

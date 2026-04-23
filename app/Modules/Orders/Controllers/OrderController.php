@@ -1,49 +1,61 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Modules\Orders\Controllers;
 
-use App\Models\Order;
-use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
+use App\Modules\Orders\Repositories\Interfaces\OrdersRepositoryInterface;
+use App\Modules\Orders\Requests\OrdersIndexRequest;
+use App\Modules\Orders\Resources\OrderDetailResource;
+use App\Modules\Orders\Requests\UpdateOrderRequest;
+use App\Modules\Orders\Resources\OrderTableResource;
 
 class OrderController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    public function __construct(
+        protected OrdersRepositoryInterface $repo
+    ) {}
+
+    public function index(OrdersIndexRequest $request)
     {
-        //
+        $data = $request->validated();
+        $result = $this->repo->all(
+            $data['search'] ?? null,
+            $data['rowsPerPage'] ?? 10,
+            $data['page'] ?? 1,
+            $data['customer_id'] ?? null,
+        );
+
+        return response()->json([
+            'data' => OrderTableResource::collection($result->items()),
+            'meta' => [
+                'total' => $result->total(),
+                'per_page' => $result->perPage(),
+                'current_page' => $result->currentPage(),
+                'last_page' => $result->lastPage(),
+                'from' => $result->firstItem(),
+                'to' => $result->lastItem(),
+            ],
+            'links' => [
+                'first' => $result->url(1),
+                'last' => $result->url($result->lastPage()),
+                'prev' => $result->previousPageUrl(),
+                'next' => $result->nextPageUrl(),
+            ],
+        ]);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    public function show($id)
     {
-        //
+        return response()->json([
+            'data' => new OrderDetailResource($this->repo->findForFrontend((int) $id)),
+        ]);
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Order $order)
+    public function update(UpdateOrderRequest $request, $id)
     {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Order $order)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Order $order)
-    {
-        //
+        return response()->json([
+            'message' => 'Order updated successfully',
+            'data' => new OrderTableResource($this->repo->update((int) $id, $request->validated())),
+        ]);
     }
 }

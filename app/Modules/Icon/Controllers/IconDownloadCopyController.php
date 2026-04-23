@@ -3,7 +3,10 @@
 namespace App\Modules\Icon\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Modules\Icon\Models\Icon;
+use App\Modules\Icon\Models\IconDownloads;
+use App\Modules\Icon\Models\IconFiles;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class IconDownloadCopyController extends Controller
 {
@@ -25,27 +28,50 @@ class IconDownloadCopyController extends Controller
         ]);
     }
 
-    public function downloadCount($fileName)
+    public function downloadCount(Request $request, $fileName)
     {
-        $path = 'icons/' . $fileName;
-        $icon = Icon::where('file_svg', $path)
-            ->orWhere('file_png', $path)
+        $iconFile = IconFiles::with('icon')
+            ->where('file_name', $fileName)
             ->first();
 
-        if (!$icon) {
+        if (!$iconFile) {
             return response()->json([
                 'success' => false,
-                'message' => 'Icon not found.'
+                'message' => 'Icon file not found.',
+                'file_name' => $fileName,
             ], 404);
         }
 
-        $icon->download_count += 1;
-        $icon->save();
+        if (!$iconFile->icon) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Related icon not found.',
+                'file_name' => $fileName,
+            ], 404);
+        }
+
+        IconDownloads::create([
+            'user_id'       => auth()->id(),
+            'icon_id'       => $iconFile->icon->id,
+            'icon_file_id'  => $iconFile->id,
+            'download_type' => $iconFile->file_type,
+            'ip_address'    => $request->ip(),
+            'downloaded_at' => now(),
+        ]);
+
+        if (Schema::hasColumn('icons', 'download_count')) {
+            $iconFile->icon->increment('download_count');
+            $iconFile->icon->refresh();
+        }
 
         return response()->json([
             'success' => true,
-            'download_count' => $icon->download_count,
-            'file_path' => $path,
+            'message' => 'Download counted successfully.',
+            'download_count' => $iconFile->icon->download_count ?? null,
+            'icon_id' => $iconFile->icon->id,
+            'icon_file_id' => $iconFile->id,
+            'file_name' => $iconFile->file_name,
+            'file_type' => $iconFile->file_type,
         ]);
     }
 

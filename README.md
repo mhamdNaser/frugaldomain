@@ -2,6 +2,45 @@ php artisan serve --host=localhost --port=8000
 
 php artisan make:model InventoryMovement -mcr --api
 php artisan make:filament-resource Product
+composer require webklex/laravel-imap
+php artisan queue:restart
+php artisan queue:work database
+php artisan queue:work database --queue=default,shopify-sync,shopify-fulfillments,shopify-variants,shopify-variant-images,shopify-images,shopify-inventory,shopify-metafields,shopify-collections,shopify-files,shopify-customers,shopify-orders,shopify-draft-orders,shopify-financials,shopify-discounts,shopify-content
+
+
+php artisan vendor:publish --provider="Webklex\IMAP\Providers\LaravelServiceProvider"
+
+
+Files (global media)
+Orders
+Draft Orders
+Customers
+Customer Addresses
+Transactions
+Refunds
+Fulfillments
+Fulfillment Orders
+Fulfillment Services
+Payments / Transactions
+Discounts / Price Rules
+Automatic Discounts
+Menus (Navigation)
+Pages
+Blogs
+Articles
+Comments
+بدي كمان نجيب هي الأجزاء 
+Selling Plans (Subscriptions)
+Product Publications
+Shipping Profiles
+Markets
+Currencies
+Publications
+Sales Channels
+
+
+php artisan queue:work database --queue=default,shopify-fulfillments --sleep=1 --tries=3 --timeout=3600
+php artisan queue:work database --queue=default,shopify-files --sleep=1 --tries=3 --timeout=3600
 
 
 <p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>

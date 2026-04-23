@@ -8,6 +8,7 @@ use App\Modules\Locale\Models\City;
 use App\Modules\Locale\Models\Country;
 use App\Modules\Locale\Models\State;
 use App\Modules\Stores\Models\Store;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -18,8 +19,8 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasApiTokens, HasRoles;
-
+    use HasFactory, Notifiable, HasApiTokens, HasRoles, HasUuids;
+    public $incrementing = false;
     protected $keyType = 'string';
 
     // If you are using UUIDs, you should set the $incrementing property to false and the $keyType property to 'string':

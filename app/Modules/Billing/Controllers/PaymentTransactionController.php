@@ -1,49 +1,60 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Modules\Billing\Controllers;
 
-use App\PaymentTransaction;
-use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
+use App\Modules\Billing\Repositories\Interfaces\PaymentTransactionsRepositoryInterface;
+use App\Modules\Billing\Requests\PaymentTransactionsIndexRequest;
+use App\Modules\Billing\Requests\UpdatePaymentTransactionRequest;
+use App\Modules\Billing\Resources\PaymentTransactionTableResource;
 
 class PaymentTransactionController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    public function __construct(
+        protected PaymentTransactionsRepositoryInterface $repo
+    ) {}
+
+    public function index(PaymentTransactionsIndexRequest $request)
     {
-        //
+        $data = $request->validated();
+        $result = $this->repo->all(
+            $data['search'] ?? null,
+            $data['rowsPerPage'] ?? 10,
+            $data['page'] ?? 1,
+            $data['order_id'] ?? null,
+        );
+
+        return response()->json([
+            'data' => PaymentTransactionTableResource::collection($result->items()),
+            'meta' => [
+                'total' => $result->total(),
+                'per_page' => $result->perPage(),
+                'current_page' => $result->currentPage(),
+                'last_page' => $result->lastPage(),
+                'from' => $result->firstItem(),
+                'to' => $result->lastItem(),
+            ],
+            'links' => [
+                'first' => $result->url(1),
+                'last' => $result->url($result->lastPage()),
+                'prev' => $result->previousPageUrl(),
+                'next' => $result->nextPageUrl(),
+            ],
+        ]);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    public function show($id)
     {
-        //
+        return response()->json([
+            'data' => new PaymentTransactionTableResource($this->repo->findForFrontend((int) $id)),
+        ]);
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(PaymentTransaction $paymentTransaction)
+    public function update(UpdatePaymentTransactionRequest $request, $id)
     {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, PaymentTransaction $paymentTransaction)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(PaymentTransaction $paymentTransaction)
-    {
-        //
+        return response()->json([
+            'message' => 'Payment transaction updated successfully',
+            'data' => new PaymentTransactionTableResource($this->repo->update((int) $id, $request->validated())),
+        ]);
     }
 }

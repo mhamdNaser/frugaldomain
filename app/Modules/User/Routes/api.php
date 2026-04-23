@@ -2,10 +2,13 @@
 
 use App\Modules\User\Controllers\AdminRoleController;
 use App\Modules\User\Controllers\AuthController;
+use App\Modules\User\Controllers\CustomerController;
 use App\Modules\User\Controllers\UserController;
 use App\Modules\User\Controllers\PermissionsController;
 use Illuminate\Support\Facades\Route;
 
+
+Route::post('login', [AuthController::class, 'userLogin'])->name('login');
 
 Route::prefix('admin')->group(function () {
 
@@ -14,6 +17,13 @@ Route::prefix('admin')->group(function () {
     Route::controller(AuthController::class)->group(function () {
         Route::post('adminregister', 'register')->name('adminregister');
         Route::post('adminLogin', 'login')->name('adminLogin');
+    });
+
+    Route::middleware(['auth:sanctum', 'role:partner'])->group(function () {
+        Route::controller(CustomerController::class)->group(function () {
+            Route::post('all-customers', 'index')->name('customers');
+            Route::get('customers/{id}', 'show')->name('selected-customer');
+        });
     });
 
     Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {

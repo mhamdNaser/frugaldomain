@@ -45,4 +45,9 @@ class Icon extends Model
     {
         return $this->hasMany(IconFiles::class, 'icon_id');
     }
+
+    public function downloads()
+    {
+        return $this->hasMany(IconDownloads::class);
+    }
 }

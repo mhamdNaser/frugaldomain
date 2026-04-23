@@ -12,9 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('subscriptions', function (Blueprint $table) {
-            $table->uuid('id')->primary();
+            $table->id();
             $table->uuid('store_id')->nullable()->index();
-            $table->uuid('plan_id')->nullable()->index();
+            $table->foreignId('plan_id')->nullable()->constrained();
             $table->string('status')->index();
             $table->timestamp('started_at')->nullable();
             $table->timestamp('ends_at')->nullable()->index();
@@ -32,10 +32,6 @@ return new class extends Migration
             $table->foreign('store_id')
                 ->references('id')
                 ->on('stores')
-                ->nullOnDelete();
-            $table->foreign('plan_id')
-                ->references('id')
-                ->on('plans')
                 ->nullOnDelete();
         });
     }

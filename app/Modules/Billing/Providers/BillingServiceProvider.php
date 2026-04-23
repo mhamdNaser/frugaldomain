@@ -2,19 +2,17 @@
 
 namespace App\Modules\Billing\Providers;
 
-use App\Repositories\Eloquent\UserRepository;
-use App\Repositories\Eloquent\LanguageRepository;
-use App\Repositories\Eloquent\AdminRoleRepository;
-use App\Repositories\Eloquent\IconRepository;
-use App\Repositories\Eloquent\IconCategoryRepository;
-use App\Repositories\Interfaces\UserRepositoryInterface;
-use App\Repositories\Interfaces\LanguageRepositoryInterface;
-use App\Repositories\Interfaces\AdminRoleRepositoryInterface;
-use App\Repositories\Interfaces\IconRepositoryInterface;
-use App\Repositories\Interfaces\IconCategoryRepositoryInterface;
+use App\Modules\Billing\Repositories\Eloquent\FrontendPaymentTransactionsRepository;
+use App\Modules\Billing\Repositories\Eloquent\FrontendPlansRepository;
+use App\Modules\Billing\Repositories\Eloquent\FrontendRefundItemsRepository;
+use App\Modules\Billing\Repositories\Eloquent\FrontendRefundsRepository;
+use App\Modules\Billing\Repositories\Eloquent\FrontendSubscriptionsRepository;
+use App\Modules\Billing\Repositories\Interfaces\PaymentTransactionsRepositoryInterface;
+use App\Modules\Billing\Repositories\Interfaces\PlansRepositoryInterface;
+use App\Modules\Billing\Repositories\Interfaces\RefundItemsRepositoryInterface;
+use App\Modules\Billing\Repositories\Interfaces\RefundsRepositoryInterface;
+use App\Modules\Billing\Repositories\Interfaces\SubscriptionsRepositoryInterface;
 use Illuminate\Support\ServiceProvider;
-use App\Repositories\Interfaces\PermissionsRepositoryInterface;
-use App\Repositories\Eloquent\PermissionsRepository;
 
 class BillingServiceProvider extends ServiceProvider
 {
@@ -23,12 +21,11 @@ class BillingServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->bind(UserRepositoryInterface::class, UserRepository::class);
-        $this->app->bind(LanguageRepositoryInterface::class, LanguageRepository::class);
-        $this->app->bind(AdminRoleRepositoryInterface::class, AdminRoleRepository::class);
-        $this->app->bind(IconRepositoryInterface::class,IconRepository::class);
-        $this->app->bind(IconCategoryRepositoryInterface::class, IconCategoryRepository::class);
-        $this->app->bind(PermissionsRepositoryInterface::class, PermissionsRepository::class);
+        $this->app->bind(PaymentTransactionsRepositoryInterface::class, FrontendPaymentTransactionsRepository::class);
+        $this->app->bind(RefundsRepositoryInterface::class, FrontendRefundsRepository::class);
+        $this->app->bind(RefundItemsRepositoryInterface::class, FrontendRefundItemsRepository::class);
+        $this->app->bind(PlansRepositoryInterface::class, FrontendPlansRepository::class);
+        $this->app->bind(SubscriptionsRepositoryInterface::class, FrontendSubscriptionsRepository::class);
     }
 
     /**

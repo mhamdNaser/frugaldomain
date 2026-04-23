@@ -1,0 +1,93 @@
+{
+    "id": "gid:\/\/shopify\/MetaobjectDefinition\/4674912323",
+    "type": "shopify--color-pattern",
+    "name": "Color",
+    "displayNameKey": "label",
+    "access": {
+        "admin": "PUBLIC_READ_WRITE",
+        "storefront": "PUBLIC_READ"
+    },
+    "capabilities": {
+        "publishable": {
+            "enabled": false
+        },
+        "translatable": {
+            "enabled": true
+        }
+    },
+    "fieldDefinitions": [
+        {
+            "key": "label",
+            "name": "Label",
+            "required": true,
+            "type": {
+                "name": "single_line_text_field"
+            },
+            "validations": [
+                {
+                    "name": "max",
+                    "value": "255"
+                }
+            ]
+        },
+        {
+            "key": "color",
+            "name": "Color",
+            "required": false,
+            "type": {
+                "name": "color"
+            },
+            "validations": []
+        },
+        {
+            "key": "image",
+            "name": "Image",
+            "required": false,
+            "type": {
+                "name": "file_reference"
+            },
+            "validations": [
+                {
+                    "name": "file_type_options",
+                    "value": "[\"Image\"]"
+                }
+            ]
+        },
+        {
+            "key": "color_taxonomy_reference",
+            "name": "Base color",
+            "required": true,
+            "type": {
+                "name": "list.product_taxonomy_value_reference"
+            },
+            "validations": [
+                {
+                    "name": "product_taxonomy_attribute_handle",
+                    "value": "color"
+                },
+                {
+                    "name": "list.min",
+                    "value": "1"
+                },
+                {
+                    "name": "list.max",
+                    "value": "4"
+                }
+            ]
+        },
+        {
+            "key": "pattern_taxonomy_reference",
+            "name": "Base pattern",
+            "required": true,
+            "type": {
+                "name": "product_taxonomy_value_reference"
+            },
+            "validations": [
+                {
+                    "name": "product_taxonomy_attribute_handle",
+                    "value": "pattern"
+                }
+            ]
+        }
+    ]
+}

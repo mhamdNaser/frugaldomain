@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('plan_features', function (Blueprint $table) {
-            $table->uuid('id')->primary();
-            $table->uuid('plan_id')->nullable()->index();
+            $table->id();
+            $table->foreignId('plan_id')->nullable()->constrained();
             $table->string('feature_key')->index();
             $table->string('feature_value')->nullable();
             $table->timestamps();
@@ -21,11 +21,6 @@ return new class extends Migration
 
 
             $table->unique(['plan_id', 'feature_key']);
-
-            $table->foreign('plan_id')
-                ->references('id')
-                ->on('plans')
-                ->nullOnDelete();
         });
     }
 
