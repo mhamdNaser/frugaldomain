@@ -25,7 +25,7 @@ class UpdateStoreRequest extends FormRequest
     {
         return [
             'owner_id'              => 'nullable|integer',
-            'shopify_store_id'      => 'nullable|string|max:255',
+            'shopify_store_id'      => 'nullable|integer',
             'shopify_domain'        => 'nullable|string|max:255',
             'shopify_access_token'  => 'nullable|string',
             'name'                  => 'nullable',

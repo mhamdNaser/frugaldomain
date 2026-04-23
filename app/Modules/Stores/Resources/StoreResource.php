@@ -11,6 +11,7 @@ class StoreResource extends JsonResource
         return [
             'id' => $this->id,
             'owner' => $this->owner->name,
+            'owner_id' => $this->owner_id,
             'shopify_store_id' => $this->shopify_store_id,
             'shopify_domain' => $this->shopify_domain,
             'name' => $this->name,

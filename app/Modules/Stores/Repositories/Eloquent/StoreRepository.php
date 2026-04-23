@@ -64,11 +64,21 @@ class StoreRepository implements StoreRepositoryInterface
         unset($data['role_id']);
         unset($data['image']);
 
+        $data['shopify_access_token'] = Crypt::encryptString($data['shopify_access_token']);
+
         if (array_key_exists('password', $data)) {
             if (empty($data['password'])) {
                 unset($data['password']);
             } else {
                 $data['password'] = Hash::make($data['password']);
+            }
+        }
+
+        if (array_key_exists('shopify_access_token', $data)) {
+            if (filled($data['shopify_access_token'])) {
+                $data['shopify_access_token'] = Crypt::encryptString($data['shopify_access_token']);
+            } else {
+                unset($data['shopify_access_token']);
             }
         }
 
@@ -104,5 +114,4 @@ class StoreRepository implements StoreRepositoryInterface
         }
         return false;
     }
-
 }
