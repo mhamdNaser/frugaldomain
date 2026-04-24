@@ -28,6 +28,7 @@ class UpdateStoreRequest extends FormRequest
             'shopify_store_id'      => 'nullable|integer',
             'shopify_domain'        => 'nullable|string|max:255',
             'shopify_access_token'  => 'nullable|string',
+            'shopify_webhook_secret'=> 'nullable|string|max:255',
             'name'                  => 'nullable',
             'email'                 => 'nullable|string|min:8',
             'currency'              => 'nullable|string|max:255',

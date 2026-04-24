@@ -64,8 +64,6 @@ class StoreRepository implements StoreRepositoryInterface
         unset($data['role_id']);
         unset($data['image']);
 
-        $data['shopify_access_token'] = Crypt::encryptString($data['shopify_access_token']);
-
         if (array_key_exists('password', $data)) {
             if (empty($data['password'])) {
                 unset($data['password']);
@@ -80,6 +78,10 @@ class StoreRepository implements StoreRepositoryInterface
             } else {
                 unset($data['shopify_access_token']);
             }
+        }
+
+        if (array_key_exists('shopify_webhook_secret', $data) && !filled($data['shopify_webhook_secret'])) {
+            unset($data['shopify_webhook_secret']);
         }
 
 

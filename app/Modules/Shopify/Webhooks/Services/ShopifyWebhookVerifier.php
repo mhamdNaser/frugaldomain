@@ -4,11 +4,19 @@ namespace App\Modules\Shopify\Webhooks\Services;
 
 class ShopifyWebhookVerifier
 {
-    public function verify(string $rawBody, ?string $hmacHeader): bool
-    {
-        $secret = (string) config('shopify.webhook_secret');
+    public function __construct(
+        private readonly ShopifyWebhookSecretResolver $secretResolver,
+    ) {}
 
-        if ($secret === '' || !$hmacHeader) {
+    public function verify(string $rawBody, ?string $hmacHeader, ?string $storeId = null): bool
+    {
+        if (!$hmacHeader) {
+            return false;
+        }
+
+        $secret = $this->secretResolver->resolveByStoreId($storeId);
+
+        if (!$secret) {
             return false;
         }
 
@@ -17,4 +25,3 @@ class ShopifyWebhookVerifier
         return hash_equals($calculated, (string) $hmacHeader);
     }
 }
-

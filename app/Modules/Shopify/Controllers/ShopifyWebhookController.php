@@ -22,7 +22,7 @@ class ShopifyWebhookController extends Controller
 
         $data = $parser->parse($request, $rawBody);
 
-        if (!$verifier->verify($rawBody, $data->hmacHeader)) {
+        if (!$verifier->verify($rawBody, $data->hmacHeader, $data->storeId)) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Invalid Shopify webhook signature.',
@@ -40,4 +40,3 @@ class ShopifyWebhookController extends Controller
         return response()->json(['status' => 'ok']);
     }
 }
-

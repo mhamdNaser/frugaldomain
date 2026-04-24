@@ -4,6 +4,7 @@ use App\Modules\Shopify\Controllers\ShopifyProductsSyncController;
 use App\Modules\Shopify\Controllers\ShopifyDataSyncController;
 use App\Modules\Shopify\Controllers\StoreConnectionController;
 use App\Modules\Shopify\Controllers\ShopifyWebhookController;
+use App\Modules\Shopify\Controllers\ShopifyWebhookSecretController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -14,6 +15,7 @@ Route::prefix('admin')->group(function () {
 
 
     Route::middleware(['auth:sanctum', 'role:partner'])->group(function () {
+        Route::put('/shopify/webhook-secret', [ShopifyWebhookSecretController::class, 'update']);
         Route::post('/sync/products', [ShopifyProductsSyncController::class, 'syncProducts']);
         Route::post('/sync/files', [ShopifyDataSyncController::class, 'files']);
         Route::post('/sync/customers', [ShopifyDataSyncController::class, 'customers']);

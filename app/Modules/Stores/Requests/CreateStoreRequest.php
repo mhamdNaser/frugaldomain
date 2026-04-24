@@ -28,6 +28,7 @@ class CreateStoreRequest extends FormRequest
             'shopify_store_id'      => 'required|string|max:255',
             'shopify_domain'        => 'required|string|max:255',
             'shopify_access_token'  => 'required|string',
+            'shopify_webhook_secret'=> 'nullable|string',
             'name'                  => 'required',
             'email'                 => 'required|string|min:8',
             'currency'              => 'required|string|max:255',

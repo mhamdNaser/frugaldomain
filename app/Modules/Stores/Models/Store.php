@@ -24,6 +24,7 @@ class Store extends Model
         'shopify_store_id',
         'shopify_domain',
         'shopify_access_token',
+        'shopify_webhook_secret',
         'name',
         'email',
         'currency',
