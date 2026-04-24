@@ -25,14 +25,22 @@ class ShopifyWebhookRouter
             'products/create' => app(ProductCreateWebhookHandler::class),
             'products/update' => app(ProductUpdateWebhookHandler::class),
             'products/delete' => app(ProductDeleteWebhookHandler::class),
+            // Some stores/apps may still emit singular product topics.
+            'product/create' => app(ProductCreateWebhookHandler::class),
+            'product/update' => app(ProductUpdateWebhookHandler::class),
+            'product/delete' => app(ProductDeleteWebhookHandler::class),
 
             'collections/create',
             'collections/update',
             'collection_listings/add',
             'collection_listings/update' => app(CollectionPublishWebhookHandler::class),
+            // Legacy singular collection topics.
+            'collection/create',
+            'collection/update' => app(CollectionPublishWebhookHandler::class),
 
             'collections/delete',
-            'collection_listings/remove' => app(CollectionUnpublishWebhookHandler::class),
+            'collection_listings/remove',
+            'collection/delete' => app(CollectionUnpublishWebhookHandler::class),
 
             'inventory_levels/update' => app(InventoryUpdateWebhookHandler::class),
 
