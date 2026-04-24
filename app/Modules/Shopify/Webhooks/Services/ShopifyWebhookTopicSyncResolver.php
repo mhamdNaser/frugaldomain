@@ -67,6 +67,10 @@ class ShopifyWebhookTopicSyncResolver
             return ['markets-price-lists'];
         }
 
+        if ($this->startsWith($topic, ['themes/'])) {
+            return ['themes'];
+        }
+
         if ($this->startsWith($topic, ['webhook_subscriptions/'])) {
             return ['webhook-subscriptions'];
         }
@@ -92,4 +96,3 @@ class ShopifyWebhookTopicSyncResolver
         return false;
     }
 }
-

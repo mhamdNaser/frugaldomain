@@ -39,6 +39,7 @@ Route::prefix('admin')->group(function () {
         Route::post('/sync/markets-price-lists', [ShopifyDataSyncController::class, 'marketsPriceLists']);
         Route::post('/sync/metaobject-definitions', [ShopifyDataSyncController::class, 'metaobjectDefinitions']);
         Route::post('/sync/selling-plans', [ShopifyDataSyncController::class, 'sellingPlans']);
+        Route::post('/sync/themes', [ShopifyDataSyncController::class, 'themes']);
         Route::post('/sync/commerce', [ShopifyDataSyncController::class, 'commerce']);
         Route::post('/sync/bootstrap', [ShopifyDataSyncController::class, 'bootstrap']);
     });

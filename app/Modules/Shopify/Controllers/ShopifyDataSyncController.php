@@ -22,6 +22,7 @@ use App\Modules\Shopify\Jobs\SyncShippingProfilesJob;
 use App\Modules\Shopify\Jobs\SyncShopifyStoreDetailsJob;
 use App\Modules\Shopify\Jobs\SyncSellingPlansJob;
 use App\Modules\Shopify\Jobs\SyncStoreInstallsJob;
+use App\Modules\Shopify\Jobs\SyncThemesJob;
 use App\Modules\Shopify\Jobs\SyncOrderFinancialsJob;
 use App\Modules\Shopify\Jobs\SyncOrdersJob;
 use App\Modules\Shopify\Jobs\SyncWebhookLogsJob;
@@ -145,6 +146,11 @@ class ShopifyDataSyncController extends Controller
     public function sellingPlans(Request $request): JsonResponse
     {
         return $this->dispatchTracked($request, 'selling-plans', SyncSellingPlansJob::class, 'Shopify selling plans/subscriptions sync started.');
+    }
+
+    public function themes(Request $request): JsonResponse
+    {
+        return $this->dispatchTracked($request, 'themes', SyncThemesJob::class, 'Shopify themes sync started.');
     }
 
     public function commerce(Request $request): JsonResponse
@@ -274,6 +280,7 @@ class ShopifyDataSyncController extends Controller
             'markets-price-lists' => ['mode' => 'queue', 'job' => SyncMarketsPriceListsJob::class],
             'metaobject-definitions' => ['mode' => 'queue', 'job' => SyncMetaobjectDefinitionsJob::class],
             'selling-plans' => ['mode' => 'queue', 'job' => SyncSellingPlansJob::class],
+            'themes' => ['mode' => 'queue', 'job' => SyncThemesJob::class],
         ];
     }
 
@@ -303,6 +310,7 @@ class ShopifyDataSyncController extends Controller
             'markets-price-lists',
             'metaobject-definitions',
             'selling-plans',
+            'themes',
         ];
 
         $set = array_flip($selectedTypes);
@@ -348,6 +356,7 @@ class ShopifyDataSyncController extends Controller
                 'markets-price-lists',
                 'metaobject-definitions',
                 'selling-plans',
+                'themes',
             ],
             'minimal' => [
                 'products',
@@ -355,6 +364,7 @@ class ShopifyDataSyncController extends Controller
                 'customers',
                 'orders',
                 'inventory-states',
+                'themes',
             ],
             default => null,
         };

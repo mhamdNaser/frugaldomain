@@ -22,6 +22,7 @@ use App\Modules\Shopify\Jobs\SyncSellingPlansJob;
 use App\Modules\Shopify\Jobs\SyncShippingProfilesJob;
 use App\Modules\Shopify\Jobs\SyncShopifyStoreDetailsJob;
 use App\Modules\Shopify\Jobs\SyncStoreInstallsJob;
+use App\Modules\Shopify\Jobs\SyncThemesJob;
 use App\Modules\Shopify\Jobs\SyncWebhookLogsJob;
 use App\Modules\Shopify\Jobs\SyncWebhookSubscriptionsJob;
 
@@ -60,7 +61,7 @@ class ShopifyWebhookSyncJobMap
             'markets-price-lists' => SyncMarketsPriceListsJob::class,
             'metaobject-definitions' => SyncMetaobjectDefinitionsJob::class,
             'selling-plans' => SyncSellingPlansJob::class,
+            'themes' => SyncThemesJob::class,
         ];
     }
 }
-
