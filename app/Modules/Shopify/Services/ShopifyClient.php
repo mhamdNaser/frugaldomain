@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Http;
 
 class ShopifyClient
 {
-    private const API_VERSION = '2026-01';
+    private const API_VERSION = '2026-04';
 
     public function __construct(
         private readonly Store $store
