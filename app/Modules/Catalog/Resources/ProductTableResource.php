@@ -22,6 +22,7 @@ class ProductTableResource extends JsonResource
             'category' => $this->category?->name,
             'category_id' => $this->category_id,
             'status' => $this->status,
+            'warehouse_location' => $this->warehouse_location,
             'is_active' => $this->status === 'active',
             'price_min' => $this->price_min,
             'price_max' => $this->price_max,

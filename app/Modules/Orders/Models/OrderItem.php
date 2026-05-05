@@ -3,6 +3,7 @@
 namespace App\Modules\Orders\Models;
 
 use App\Modules\Catalog\Models\ProductVariant;
+use App\Modules\Tax\Models\TaxLine;
 use Illuminate\Database\Eloquent\Model;
 
 class OrderItem extends Model
@@ -38,5 +39,10 @@ class OrderItem extends Model
     public function variant()
     {
         return $this->belongsTo(ProductVariant::class, 'variant_id');
+    }
+
+    public function taxLines()
+    {
+        return $this->hasMany(TaxLine::class);
     }
 }

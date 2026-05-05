@@ -7,6 +7,8 @@ use App\Modules\CMS\Models\Metafield;
 use App\Modules\Inventory\Models\InventoryLevel;
 use App\Modules\Inventory\Models\InventoryMovement;
 use App\Modules\Inventory\Models\Inventory;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -57,6 +59,20 @@ class ProductVariant extends Model
     public function files()
     {
         return $this->morphMany(File::class, 'fileable')->orderBy('position');
+    }
+
+    public function variantImage(): MorphOne
+    {
+        return $this->morphOne(File::class, 'fileable')
+            ->variantImages()
+            ->orderBy('position');
+    }
+
+    public function variantImages(): MorphMany
+    {
+        return $this->morphMany(File::class, 'fileable')
+            ->variantImages()
+            ->orderBy('position');
     }
 
     public function metafields()

@@ -65,7 +65,7 @@
             "npx concurrently -c \"#93c5fd,#c4b5fd,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"npm run dev\" --names='server,queue,vite'"
         ],
         "queue:shopify": [
-            "@php artisan queue:work database --queue=default,shopify-sync,shopify-variants,shopify-images,shopify-inventory,shopify-metafields,shopify-collections,shopify-files,shopify-customers,shopify-orders,shopify-draft-orders,shopify-fulfillments,shopify-financials,shopify-discounts,shopify-content --sleep=1 --tries=3 --timeout=3600 --memory=256"
+            "@php artisan queue:work database --queue=default,shopify-sync,shopify-outbound,shopify-variants,shopify-images,shopify-inventory,shopify-metafields,shopify-collections,shopify-files,shopify-customers,shopify-orders,shopify-draft-orders,shopify-fulfillments,shopify-financials,shopify-discounts,shopify-content --sleep=1 --tries=3 --timeout=3600 --memory=256"
         ],
         "test": [
             "@php artisan config:clear --ansi",

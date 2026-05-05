@@ -7,11 +7,13 @@ use App\Modules\Marketing\Repositories\Interfaces\DiscountCodesRepositoryInterfa
 use App\Modules\Marketing\Requests\DiscountCodesIndexRequest;
 use App\Modules\Marketing\Requests\UpdateDiscountCodeRequest;
 use App\Modules\Marketing\Resources\DiscountCodeTableResource;
+use App\Modules\Shopify\OutboundSync\Services\LocalChangeOutboundSyncDispatcher;
 
 class DiscountCodeController extends Controller
 {
     public function __construct(
-        protected DiscountCodesRepositoryInterface $repo
+        protected DiscountCodesRepositoryInterface $repo,
+        protected LocalChangeOutboundSyncDispatcher $outboundSyncDispatcher,
     ) {}
 
     public function index(DiscountCodesIndexRequest $request)
@@ -52,9 +54,90 @@ class DiscountCodeController extends Controller
 
     public function update(UpdateDiscountCodeRequest $request, $id)
     {
+        $validated = $request->validated();
+        $updated = $this->repo->update((int) $id, $validated);
+        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+            validated: $validated,
+            storeId: (string) $updated->store_id,
+            entityType: 'discount_code',
+            entityId: (string) $updated->id,
+            action: 'update',
+        );
+
         return response()->json([
             'message' => 'Discount code updated successfully',
-            'data' => new DiscountCodeTableResource($this->repo->update((int) $id, $request->validated())),
+            'data' => new DiscountCodeTableResource($updated),
+            'meta' => [
+                'outbound_sync_id' => $outboundSyncId,
+            ],
+        ]);
+    }
+
+    public function store()
+    {
+        $validated = request()->validate([
+            'store_id' => ['required', 'uuid'],
+            'discount_id' => ['nullable', 'integer'],
+            'code' => ['required', 'string', 'max:255'],
+            'shopify_sync' => ['sometimes', 'array'],
+            'shopify_sync.mutation' => ['sometimes', 'required_without:shopify_sync.query', 'string'],
+            'shopify_sync.query' => ['sometimes', 'required_without:shopify_sync.mutation', 'string'],
+            'shopify_sync.variables' => ['nullable', 'array'],
+            'shopify_sync.resource_path' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.user_errors_path' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.idempotency_key' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.correlation_id' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.priority' => ['nullable', 'integer', 'min:0', 'max:9'],
+            'shopify_sync.max_attempts' => ['nullable', 'integer', 'min:1', 'max:20'],
+        ]);
+
+        $created = $this->repo->create($validated);
+        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+            validated: $validated,
+            storeId: (string) $created->store_id,
+            entityType: 'discount_code',
+            entityId: (string) $created->id,
+            action: 'create',
+        );
+
+        return response()->json([
+            'message' => 'Discount code created successfully',
+            'data' => new DiscountCodeTableResource($created),
+            'meta' => ['outbound_sync_id' => $outboundSyncId],
+        ], 201);
+    }
+
+    public function destroy(int $id)
+    {
+        $validated = request()->validate([
+            'shopify_sync' => ['sometimes', 'array'],
+            'shopify_sync.mutation' => ['sometimes', 'required_without:shopify_sync.query', 'string'],
+            'shopify_sync.query' => ['sometimes', 'required_without:shopify_sync.mutation', 'string'],
+            'shopify_sync.variables' => ['nullable', 'array'],
+            'shopify_sync.resource_path' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.user_errors_path' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.idempotency_key' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.correlation_id' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.priority' => ['nullable', 'integer', 'min:0', 'max:9'],
+            'shopify_sync.max_attempts' => ['nullable', 'integer', 'min:1', 'max:20'],
+        ]);
+
+        $code = $this->repo->find((int) $id);
+        $storeId = (string) $code->store_id;
+        $entityId = (string) $code->id;
+        $this->repo->delete((int) $id);
+
+        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+            validated: $validated,
+            storeId: $storeId,
+            entityType: 'discount_code',
+            entityId: $entityId,
+            action: 'delete',
+        );
+
+        return response()->json([
+            'message' => 'Discount code deleted successfully',
+            'meta' => ['outbound_sync_id' => $outboundSyncId],
         ]);
     }
 }

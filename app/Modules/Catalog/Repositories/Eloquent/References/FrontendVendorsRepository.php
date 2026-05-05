@@ -49,6 +49,13 @@ class FrontendVendorsRepository implements VendorsRepositoryInterface
             ->findOrFail($id);
     }
 
+    public function create(array $data)
+    {
+        $vendor = $this->model->newQuery()->create($data);
+
+        return $this->findForFrontend((int) $vendor->id);
+    }
+
     public function update(int $id, array $data)
     {
         $vendor = $this->find($id);
@@ -56,6 +63,12 @@ class FrontendVendorsRepository implements VendorsRepositoryInterface
         $vendor->save();
 
         return $this->findForFrontend($vendor->id);
+    }
+
+    public function delete(int $id): void
+    {
+        $vendor = $this->find($id);
+        $vendor->delete();
     }
 
     public function toggleStatus(int $id)

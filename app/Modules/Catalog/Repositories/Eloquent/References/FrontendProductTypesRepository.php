@@ -42,6 +42,13 @@ class FrontendProductTypesRepository implements ProductTypesRepositoryInterface
             ->findOrFail($id);
     }
 
+    public function create(array $data)
+    {
+        $productType = $this->model->newQuery()->create($data);
+
+        return $this->findForFrontend((int) $productType->id);
+    }
+
     public function update(int $id, array $data)
     {
         $productType = $this->find($id);
@@ -49,6 +56,12 @@ class FrontendProductTypesRepository implements ProductTypesRepositoryInterface
         $productType->save();
 
         return $this->findForFrontend($productType->id);
+    }
+
+    public function delete(int $id): void
+    {
+        $productType = $this->find($id);
+        $productType->delete();
     }
 
     private function applyTenantScope($query)

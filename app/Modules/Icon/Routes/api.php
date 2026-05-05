@@ -3,6 +3,7 @@
 use App\Modules\Icon\Controllers\IconDownloadCopyController;
 use App\Modules\Icon\Controllers\IconController;
 use App\Modules\Icon\Controllers\IconCategoriesController;
+use App\Modules\Icon\Controllers\IconFavoriteController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -14,6 +15,12 @@ Route::controller(IconDownloadCopyController::class)->group(function () {
     Route::get('/download-count/{fileName}', 'downloadCount');
     Route::get('/get-icon-svg/{fileName}', 'getIconCode');
     Route::get('/get-icon-jsx/{fileName}', 'getIconCodeJsx');
+});
+
+Route::middleware('auth:sanctum')->prefix('me')->group(function () {
+    Route::get('icon-favorites', [IconFavoriteController::class, 'myFavorites']);
+    Route::post('icon-favorites/toggle/{iconId}', [IconFavoriteController::class, 'toggle']);
+    Route::get('icon-downloads', [IconFavoriteController::class, 'myDownloads']);
 });
 
 Route::prefix('admin')->group(function () {

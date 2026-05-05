@@ -54,6 +54,19 @@ class FrontendTagsRepository implements TagsRepositoryInterface
         return $this->findForFrontend($tag->id);
     }
 
+    public function create(array $data)
+    {
+        $tag = $this->model->newQuery()->create($data);
+
+        return $this->findForFrontend((int) $tag->id);
+    }
+
+    public function delete(int $id): void
+    {
+        $tag = $this->find($id);
+        $tag->delete();
+    }
+
     private function applyTenantScope($query)
     {
         $user = auth()->user();

@@ -7,11 +7,13 @@ use App\Modules\Catalog\Repositories\Interfaces\References\OptionsRepositoryInte
 use App\Modules\Catalog\Requests\References\OptionsIndexRequest;
 use App\Modules\Catalog\Requests\References\UpdateOptionRequest;
 use App\Modules\Catalog\Resources\References\OptionTableResource;
+use App\Modules\Shopify\OutboundSync\Services\LocalChangeOutboundSyncDispatcher;
 
 class OptionsController extends Controller
 {
     public function __construct(
-        protected OptionsRepositoryInterface $repo
+        protected OptionsRepositoryInterface $repo,
+        protected LocalChangeOutboundSyncDispatcher $outboundSyncDispatcher,
     ) {}
 
     public function index(OptionsIndexRequest $request)
@@ -51,9 +53,90 @@ class OptionsController extends Controller
 
     public function update(UpdateOptionRequest $request, $id)
     {
+        $validated = $request->validated();
+        $updated = $this->repo->update((int) $id, $validated);
+        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+            validated: $validated,
+            storeId: (string) $updated->store_id,
+            entityType: 'option',
+            entityId: (string) $updated->id,
+            action: 'update',
+        );
+
         return response()->json([
             'message' => 'Option updated successfully',
-            'data' => new OptionTableResource($this->repo->update((int) $id, $request->validated())),
+            'data' => new OptionTableResource($updated),
+            'meta' => ['outbound_sync_id' => $outboundSyncId],
+        ]);
+    }
+
+    public function store()
+    {
+        $validated = request()->validate([
+            'store_id' => ['required', 'uuid'],
+            'name' => ['required', 'string', 'max:255'],
+            'values' => ['nullable', 'array'],
+            'values.*.label' => ['required_with:values', 'string', 'max:255'],
+            'values.*.value' => ['required_with:values', 'string', 'max:255'],
+            'shopify_sync' => ['sometimes', 'array'],
+            'shopify_sync.mutation' => ['sometimes', 'required_without:shopify_sync.query', 'string'],
+            'shopify_sync.query' => ['sometimes', 'required_without:shopify_sync.mutation', 'string'],
+            'shopify_sync.variables' => ['nullable', 'array'],
+            'shopify_sync.resource_path' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.user_errors_path' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.idempotency_key' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.correlation_id' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.priority' => ['nullable', 'integer', 'min:0', 'max:9'],
+            'shopify_sync.max_attempts' => ['nullable', 'integer', 'min:1', 'max:20'],
+        ]);
+
+        $created = $this->repo->create($validated);
+        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+            validated: $validated,
+            storeId: (string) $created->store_id,
+            entityType: 'option',
+            entityId: (string) $created->id,
+            action: 'create',
+        );
+
+        return response()->json([
+            'message' => 'Option created successfully',
+            'data' => new OptionTableResource($created),
+            'meta' => ['outbound_sync_id' => $outboundSyncId],
+        ], 201);
+    }
+
+    public function destroy(int $id)
+    {
+        $validated = request()->validate([
+            'shopify_sync' => ['sometimes', 'array'],
+            'shopify_sync.mutation' => ['sometimes', 'required_without:shopify_sync.query', 'string'],
+            'shopify_sync.query' => ['sometimes', 'required_without:shopify_sync.mutation', 'string'],
+            'shopify_sync.variables' => ['nullable', 'array'],
+            'shopify_sync.resource_path' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.user_errors_path' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.idempotency_key' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.correlation_id' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.priority' => ['nullable', 'integer', 'min:0', 'max:9'],
+            'shopify_sync.max_attempts' => ['nullable', 'integer', 'min:1', 'max:20'],
+        ]);
+
+        $option = $this->repo->find((int) $id);
+        $storeId = (string) $option->store_id;
+        $entityId = (string) $option->id;
+        $this->repo->delete((int) $id);
+
+        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+            validated: $validated,
+            storeId: $storeId,
+            entityType: 'option',
+            entityId: $entityId,
+            action: 'delete',
+        );
+
+        return response()->json([
+            'message' => 'Option deleted successfully',
+            'meta' => ['outbound_sync_id' => $outboundSyncId],
         ]);
     }
 }

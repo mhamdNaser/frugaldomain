@@ -8,11 +8,14 @@ use App\Modules\Shipping\Requests\ShippingZonesIndexRequest;
 use App\Modules\Shipping\Requests\UpdateShippingZoneRequest;
 use App\Modules\Shipping\Resources\ShippingZoneDetailsResource;
 use App\Modules\Shipping\Resources\ShippingZoneTableResource;
+use App\Modules\Shopify\OutboundSync\Services\LocalChangeOutboundSyncDispatcher;
+use Illuminate\Http\Request;
 
 class ShippingZoneController extends Controller
 {
     public function __construct(
-        protected ShippingZonesRepositoryInterface $repo
+        protected ShippingZonesRepositoryInterface $repo,
+        protected LocalChangeOutboundSyncDispatcher $outboundSyncDispatcher,
     ) {}
 
     public function index(ShippingZonesIndexRequest $request)
@@ -52,9 +55,92 @@ class ShippingZoneController extends Controller
 
     public function update(UpdateShippingZoneRequest $request, $id)
     {
+        $validated = $request->validated();
+        $updated = $this->repo->update((int) $id, $validated);
+        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+            validated: $validated,
+            storeId: (string) $updated->store_id,
+            entityType: 'shipping_zone',
+            entityId: (string) $updated->id,
+            action: 'update',
+        );
+
         return response()->json([
             'message' => 'Shipping zone updated successfully',
-            'data' => new ShippingZoneDetailsResource($this->repo->update((int) $id, $request->validated())),
+            'data' => new ShippingZoneDetailsResource($updated),
+            'meta' => [
+                'outbound_sync_id' => $outboundSyncId,
+            ],
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'store_id' => ['required', 'uuid'],
+            'name' => ['required', 'string', 'max:255'],
+            'shopify_zone_id' => ['nullable', 'string', 'max:255'],
+            'shopify_profile_id' => ['nullable', 'string', 'max:255'],
+            'countries' => ['nullable'],
+            'shopify_sync' => ['sometimes', 'array'],
+            'shopify_sync.mutation' => ['sometimes', 'required_without:shopify_sync.query', 'string'],
+            'shopify_sync.query' => ['sometimes', 'required_without:shopify_sync.mutation', 'string'],
+            'shopify_sync.variables' => ['nullable', 'array'],
+            'shopify_sync.resource_path' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.user_errors_path' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.idempotency_key' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.correlation_id' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.priority' => ['nullable', 'integer', 'min:0', 'max:9'],
+            'shopify_sync.max_attempts' => ['nullable', 'integer', 'min:1', 'max:20'],
+        ]);
+
+        $created = $this->repo->create($validated);
+        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+            validated: $validated,
+            storeId: (string) $created->store_id,
+            entityType: 'shipping_zone',
+            entityId: (string) $created->id,
+            action: 'create',
+        );
+
+        return response()->json([
+            'message' => 'Shipping zone created successfully',
+            'data' => new ShippingZoneDetailsResource($created),
+            'meta' => ['outbound_sync_id' => $outboundSyncId],
+        ], 201);
+    }
+
+    public function destroy(int $id)
+    {
+        $validated = request()->validate([
+            'shopify_sync' => ['sometimes', 'array'],
+            'shopify_sync.mutation' => ['sometimes', 'required_without:shopify_sync.query', 'string'],
+            'shopify_sync.query' => ['sometimes', 'required_without:shopify_sync.mutation', 'string'],
+            'shopify_sync.variables' => ['nullable', 'array'],
+            'shopify_sync.resource_path' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.user_errors_path' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.idempotency_key' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.correlation_id' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.priority' => ['nullable', 'integer', 'min:0', 'max:9'],
+            'shopify_sync.max_attempts' => ['nullable', 'integer', 'min:1', 'max:20'],
+        ]);
+
+        $zone = $this->repo->find((int) $id);
+        $storeId = (string) $zone->store_id;
+        $entityId = (string) $zone->id;
+        $this->repo->delete((int) $id);
+
+        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+            validated: $validated,
+            storeId: $storeId,
+            entityType: 'shipping_zone',
+            entityId: $entityId,
+            action: 'delete',
+        );
+
+        return response()->json([
+            'message' => 'Shipping zone deleted successfully',
+            'meta' => ['outbound_sync_id' => $outboundSyncId],
         ]);
     }
 }

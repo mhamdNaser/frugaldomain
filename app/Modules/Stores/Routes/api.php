@@ -2,10 +2,15 @@
 
 use App\Modules\Stores\Controllers\StoreController;
 use App\Modules\Stores\Controllers\StoreSettingController;
+use App\Modules\Stores\Controllers\AccountsManageController;
 use App\Modules\Stores\Controllers\StoreBrandingController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin')->group(function () {
+
+    Route::middleware(['auth:sanctum', 'role:partner'])->group(function () {
+        Route::get('accounts-manage', [AccountsManageController::class, 'show']);
+    });
 
     Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
 

@@ -9,10 +9,13 @@ use Illuminate\Support\Facades\Route;
 
 
 Route::post('login', [AuthController::class, 'userLogin'])->name('login');
+Route::post('admin/password/forgot', [AuthController::class, 'forgotPassword'])->name('password-forgot');
+Route::post('admin/password/reset-with-code', [AuthController::class, 'resetPasswordWithCode'])->name('password-reset-with-code');
 
 Route::prefix('admin')->group(function () {
 
     Route::middleware('auth:sanctum')->get('/me', [AuthController::class, 'me']);
+    Route::middleware('auth:sanctum')->post('/password/change', [AuthController::class, 'changePassword']);
 
     Route::controller(AuthController::class)->group(function () {
         Route::post('adminregister', 'register')->name('adminregister');
@@ -22,7 +25,10 @@ Route::prefix('admin')->group(function () {
     Route::middleware(['auth:sanctum', 'role:partner'])->group(function () {
         Route::controller(CustomerController::class)->group(function () {
             Route::post('all-customers', 'index')->name('customers');
+            Route::post('customers', 'store')->name('store-customer');
             Route::get('customers/{id}', 'show')->name('selected-customer');
+            Route::put('customers/{id}', 'update')->name('update-customer');
+            Route::delete('customers/{id}', 'destroy')->name('delete-customer');
         });
     });
 

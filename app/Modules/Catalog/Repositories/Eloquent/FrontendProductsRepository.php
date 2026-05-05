@@ -4,6 +4,7 @@ namespace App\Modules\Catalog\Repositories\Eloquent;
 
 use App\Modules\Catalog\Models\Product;
 use App\Modules\Catalog\Repositories\Interfaces\ProductsRepositoryInterface;
+use Illuminate\Support\Arr;
 
 class FrontendProductsRepository implements ProductsRepositoryInterface
 {
@@ -49,11 +50,14 @@ class FrontendProductsRepository implements ProductsRepositoryInterface
                 'productType',
                 'category',
                 'collections',
+                'tags',
                 'files',
                 'productMedia',
                 'metafields.metaobjects',
                 'options.values',
                 'variants' => fn ($query) => $query->orderBy('position')->orderBy('id'),
+                'variants.variantImage',
+                'variants.variantImages',
                 'variants.files',
                 'variants.optionValues.option',
                 'variants.metafields.metaobjects',
@@ -70,10 +74,31 @@ class FrontendProductsRepository implements ProductsRepositoryInterface
     public function update(int $id, array $data)
     {
         $product = $this->find($id);
-        $product->fill($data);
+        $relations = Arr::only($data, ['collection_ids', 'option_ids', 'tag_ids']);
+        $attributes = Arr::except($data, ['collection_ids', 'option_ids', 'tag_ids']);
+
+        $product->fill($attributes);
         $product->save();
+        $this->syncRelations($product, $relations);
 
         return $this->findForFrontend($product->id);
+    }
+
+    public function create(array $data)
+    {
+        $relations = Arr::only($data, ['collection_ids', 'option_ids', 'tag_ids']);
+        $attributes = Arr::except($data, ['collection_ids', 'option_ids', 'tag_ids']);
+
+        $product = $this->model->newQuery()->create($attributes);
+        $this->syncRelations($product, $relations);
+
+        return $this->findForFrontend((int) $product->id);
+    }
+
+    public function delete(int $id): void
+    {
+        $product = $this->find($id);
+        $product->delete();
     }
 
     public function toggleStatus(int $id)
@@ -101,5 +126,58 @@ class FrontendProductsRepository implements ProductsRepositoryInterface
         }
 
         return $query;
+    }
+
+    private function syncRelations(Product $product, array $relations): void
+    {
+        if (array_key_exists('collection_ids', $relations)) {
+            $collectionIds = collect((array) $relations['collection_ids'])
+                ->filter(fn ($id) => $id !== null && $id !== '')
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values();
+
+            $pivotPayload = $collectionIds
+                ->mapWithKeys(fn ($id, $index) => [
+                    $id => [
+                        'store_id' => $product->store_id,
+                        'position' => $index,
+                        'added_via' => 'manual',
+                    ],
+                ])
+                ->toArray();
+
+            $product->collections()->sync($pivotPayload);
+        }
+
+        if (array_key_exists('option_ids', $relations)) {
+            $optionIds = collect((array) $relations['option_ids'])
+                ->filter(fn ($id) => $id !== null && $id !== '')
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values();
+
+            $pivotPayload = $optionIds
+                ->mapWithKeys(fn ($id, $index) => [
+                    $id => [
+                        'store_id' => $product->store_id,
+                        'position' => $index,
+                    ],
+                ])
+                ->toArray();
+
+            $product->options()->sync($pivotPayload);
+        }
+
+        if (array_key_exists('tag_ids', $relations)) {
+            $tagIds = collect((array) $relations['tag_ids'])
+                ->filter(fn ($id) => $id !== null && $id !== '')
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values()
+                ->toArray();
+
+            $product->tags()->sync($tagIds);
+        }
     }
 }

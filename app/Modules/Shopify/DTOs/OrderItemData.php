@@ -15,5 +15,6 @@ class OrderItemData
         public readonly float $unitPrice,
         public readonly float $totalPrice,
         public readonly array $rawPayload,
+        public readonly array $taxLines = [],
     ) {}
 }

@@ -2,6 +2,7 @@
 
 namespace App\Modules\Orders\Resources;
 
+use App\Modules\Tax\Resources\TaxLineResource;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class OrderDetailResource extends JsonResource
@@ -27,6 +28,7 @@ class OrderDetailResource extends JsonResource
             'fulfillment_status' => $this->fulfillment_status,
             'subtotal' => $this->subtotal,
             'tax' => $this->tax,
+            'tax_lines' => TaxLineResource::collection($this->whenLoaded('taxLines')),
             'shipping' => $this->shipping,
             'discount' => $this->discount,
             'total' => $this->total,

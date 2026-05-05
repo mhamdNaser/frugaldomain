@@ -12,6 +12,12 @@ class ProductVariantResource extends JsonResource
             'id' => $this->id,
             'store_id' => $this->store_id,
             'product_id' => $this->product_id,
+            'product' => $this->whenLoaded('product', fn () => [
+                'id' => $this->product?->id,
+                'title' => $this->product?->title,
+                'handle' => $this->product?->handle,
+                'shopify_product_id' => $this->product?->shopify_product_id,
+            ]),
             'shopify_variant_id' => $this->shopify_variant_id,
             'title' => $this->title,
             'sku' => $this->sku,
@@ -23,7 +29,12 @@ class ProductVariantResource extends JsonResource
             'available_for_sale' => (bool) $this->availableForSale,
             'taxable' => (bool) $this->taxable,
             'position' => $this->position,
-            'image' => new ProductFileResource($this->whenLoaded('files', fn () => $this->files->first())),
+            'image' => new ProductFileResource(
+                $this->whenLoaded(
+                    'files',
+                    fn () => $this->files->firstWhere('role', 'variant_image') ?? $this->files->first()
+                )
+            ),
             'files' => ProductFileResource::collection($this->whenLoaded('files')),
             'option_values' => $this->whenLoaded('optionValues', fn () => $this->optionValues->map(fn ($value) => [
                 'id' => $value->id,

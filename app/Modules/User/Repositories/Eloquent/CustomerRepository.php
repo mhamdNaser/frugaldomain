@@ -53,5 +53,35 @@ class CustomerRepository implements CustomerRepositoryInterface
             ->where('store_id', $storeId)
             ->find($id);
     }
-}
 
+    public function createForStore(string $storeId, array $data)
+    {
+        $customer = $this->model::query()->create([
+            ...$data,
+            'store_id' => $storeId,
+        ]);
+
+        return $this->findForStoreWithDetails($storeId, (int) $customer->id);
+    }
+
+    public function updateForStore(string $storeId, int $id, array $data)
+    {
+        $customer = $this->model::query()
+            ->where('store_id', $storeId)
+            ->findOrFail($id);
+
+        $customer->fill($data);
+        $customer->save();
+
+        return $this->findForStoreWithDetails($storeId, $customer->id);
+    }
+
+    public function deleteForStore(string $storeId, int $id): void
+    {
+        $customer = $this->model::query()
+            ->where('store_id', $storeId)
+            ->findOrFail($id);
+
+        $customer->delete();
+    }
+}

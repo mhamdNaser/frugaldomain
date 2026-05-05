@@ -16,12 +16,20 @@ class InventoryLevel extends Model
         'inventory_item_id',
         'shopify_location_id',
         'available',
+        'committed',
+        'incoming',
+        'reserved',
+        'on_hand',
         'shopify_updated_at',
         'raw_payload',
     ];
 
     protected $casts = [
         'available' => 'integer',
+        'committed' => 'integer',
+        'incoming' => 'integer',
+        'reserved' => 'integer',
+        'on_hand' => 'integer',
         'shopify_updated_at' => 'datetime',
         'raw_payload' => 'array',
     ];

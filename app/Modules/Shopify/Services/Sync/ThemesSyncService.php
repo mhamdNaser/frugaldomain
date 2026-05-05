@@ -71,7 +71,8 @@ class ThemesSyncService
                 'name' => $node['name'] ?? null,
                 'role' => isset($node['role']) ? strtolower((string) $node['role']) : null,
                 'processing' => (bool) ($node['processing'] ?? false),
-                'previewable' => (bool) ($node['previewable'] ?? false),
+                // `previewable` was removed from newer Shopify API versions.
+                'previewable' => isset($node['previewable']) ? (bool) $node['previewable'] : false,
                 'raw_payload' => $node,
                 'shopify_created_at' => $node['createdAt'] ?? null,
                 'shopify_updated_at' => $node['updatedAt'] ?? null,
@@ -140,7 +141,6 @@ query GetThemes($first: Int!, $after: String) {
         id
         name
         role
-        previewable
         processing
         createdAt
         updatedAt
@@ -179,4 +179,3 @@ query GetThemeAssets($id: ID!, $first: Int!) {
 GRAPHQL;
     }
 }
-

@@ -25,4 +25,33 @@ class FrontendBlogsRepository implements BlogsRepositoryInterface
             'published_at',
         );
     }
+
+    public function findForFrontend(int $id)
+    {
+        return $this->applyTenantScope(
+            $this->model->newQuery()->withCount('articles')
+        )->findOrFail($id);
+    }
+
+    public function update(int $id, array $data)
+    {
+        $blog = $this->findForFrontend($id);
+        $blog->fill($data);
+        $blog->save();
+
+        return $this->findForFrontend((int) $blog->id);
+    }
+
+    public function create(array $data)
+    {
+        $blog = $this->model->newQuery()->create($data);
+
+        return $this->findForFrontend((int) $blog->id);
+    }
+
+    public function delete(int $id): void
+    {
+        $blog = $this->findForFrontend($id);
+        $blog->delete();
+    }
 }

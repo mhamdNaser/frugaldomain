@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 return array (
   'English' => 'English',
@@ -26,5 +26,5 @@ return array (
   'not_yes' => 'Cancel',
   'yes_delete' => 'تأكيد الحذف',
   'Change All Words' => 'تغيير كل الكلمات',
-  'Developed_by' => 'تم تطويره بوساطة',
+  'Developed_by' => 'تم تطويره بواسطة',
 );

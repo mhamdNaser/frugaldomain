@@ -57,6 +57,19 @@ class FrontendShippingZonesRepository implements ShippingZonesRepositoryInterfac
         return $this->findForFrontend($zone->id);
     }
 
+    public function create(array $data)
+    {
+        $zone = $this->model->newQuery()->create($data);
+
+        return $this->findForFrontend((int) $zone->id);
+    }
+
+    public function delete(int $id): void
+    {
+        $zone = $this->find($id);
+        $zone->delete();
+    }
+
     private function applyTenantScope($query)
     {
         $user = auth()->user();

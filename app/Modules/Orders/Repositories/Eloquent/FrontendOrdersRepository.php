@@ -47,6 +47,8 @@ class FrontendOrdersRepository implements OrdersRepositoryInterface
         return $this->applyTenantScope(Order::query())
             ->with([
                 'customer:id,display_name,email,phone',
+                'taxLines',
+                'items.taxLines',
                 'items.variant.files',
                 'items.variant.optionValues.option',
                 'items.variant.product:id,title,handle,featured_image',
@@ -64,6 +66,19 @@ class FrontendOrdersRepository implements OrdersRepositoryInterface
         $order->save();
 
         return $this->findForFrontend($order->id);
+    }
+
+    public function create(array $data)
+    {
+        $order = $this->model->newQuery()->create($data);
+
+        return $this->findForFrontend((int) $order->id);
+    }
+
+    public function delete(int $id): void
+    {
+        $order = $this->find($id);
+        $order->delete();
     }
 
     private function applyTenantScope($query)

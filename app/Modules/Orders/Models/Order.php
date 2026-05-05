@@ -3,6 +3,7 @@
 namespace App\Modules\Orders\Models;
 
 use App\Modules\Catalog\Models\ProductVariant;
+use App\Modules\Tax\Models\TaxLine;
 use App\Modules\User\Models\Customer;
 use Illuminate\Database\Eloquent\Model;
 
@@ -45,6 +46,11 @@ class Order extends Model
     public function items()
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    public function taxLines()
+    {
+        return $this->hasMany(TaxLine::class)->whereNull('order_item_id');
     }
 
     public function customer()

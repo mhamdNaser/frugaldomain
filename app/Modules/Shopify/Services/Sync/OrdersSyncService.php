@@ -7,8 +7,10 @@ use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Models\OrderItem;
 use App\Modules\Shopify\DTOs\OrderData;
 use App\Modules\Shopify\DTOs\OrderItemData;
+use App\Modules\Shopify\DTOs\TaxLineData;
 use App\Modules\Shopify\Services\ShopifyClient;
 use App\Modules\Stores\Models\Store;
+use App\Modules\Tax\Models\TaxLine;
 use App\Modules\User\Models\Customer;
 
 class OrdersSyncService
@@ -86,6 +88,8 @@ class OrdersSyncService
             }
         }
 
+        $this->syncTaxLines($store, $order, null, $data->taxLines, 'shopify_order');
+
         return $order;
     }
 
@@ -120,7 +124,7 @@ class OrdersSyncService
 
     private function syncOrderItem(Store $store, Order $order, OrderItemData $data): void
     {
-        OrderItem::query()->updateOrCreate(
+        $item = OrderItem::query()->updateOrCreate(
             [
                 'order_id' => $order->id,
                 'shopify_line_item_id' => $data->shopifyLineItemId,
@@ -139,6 +143,70 @@ class OrdersSyncService
                 'raw_payload' => $data->rawPayload,
             ]
         );
+
+        $this->syncTaxLines($store, $order, $item, $data->taxLines, 'shopify_line_item');
+    }
+
+    private function syncTaxLines(Store $store, Order $order, ?OrderItem $item, array $taxLines, string $source): void
+    {
+        $keys = [];
+
+        foreach ($taxLines as $taxLine) {
+            if (!$taxLine instanceof TaxLineData) {
+                continue;
+            }
+
+            $key = $this->taxLineKey($order, $item, $taxLine, $source);
+            $keys[] = $key;
+
+            TaxLine::query()->updateOrCreate(
+                [
+                    'order_id' => $order->id,
+                    'order_item_id' => $item?->id,
+                    'source_key' => $key,
+                ],
+                [
+                    'store_id' => $store->id,
+                    'shopify_tax_line_id' => $taxLine->shopifyTaxLineId,
+                    'title' => $taxLine->title,
+                    'rate' => $taxLine->rate,
+                    'rate_percentage' => $taxLine->ratePercentage,
+                    'price' => $taxLine->price,
+                    'currency' => $taxLine->currency ?: $order->currency,
+                    'channel_liable' => $taxLine->channelLiable,
+                    'source' => $source,
+                    'is_shipping' => $taxLine->isShipping,
+                    'raw_payload' => $taxLine->rawPayload,
+                ]
+            );
+        }
+
+        $query = TaxLine::query()
+            ->where('order_id', $order->id)
+            ->where('source', $source);
+
+        $item
+            ? $query->where('order_item_id', $item->id)
+            : $query->whereNull('order_item_id');
+
+        $keys
+            ? $query->whereNotIn('source_key', $keys)->delete()
+            : $query->delete();
+    }
+
+    private function taxLineKey(Order $order, ?OrderItem $item, TaxLineData $taxLine, string $source): string
+    {
+        return hash('sha256', implode('|', [
+            $source,
+            $order->shopify_order_id,
+            $item?->shopify_line_item_id,
+            $taxLine->shopifyTaxLineId,
+            $taxLine->title,
+            $taxLine->rate,
+            $taxLine->ratePercentage,
+            $taxLine->price,
+            $taxLine->currency,
+        ]));
     }
 
     private function variantId(Store $store, ?string $shopifyVariantId): ?int
@@ -194,6 +262,7 @@ class OrdersSyncService
                 fn (array $edge): ?OrderItemData => $this->orderItemData($edge['node'] ?? null),
                 $this->lineItems($client, $node),
             ))),
+            taxLines: $this->taxLineDataList($node['taxLines'] ?? []),
         );
     }
 
@@ -213,6 +282,36 @@ class OrdersSyncService
             quantity: (int) ($line['quantity'] ?? 0),
             unitPrice: $this->amount($line['originalUnitPriceSet'] ?? []),
             totalPrice: $this->amount($line['discountedTotalSet'] ?? []),
+            rawPayload: $line,
+            taxLines: $this->taxLineDataList($line['taxLines'] ?? []),
+        );
+    }
+
+    private function taxLineDataList(array $taxLines, bool $isShipping = false): array
+    {
+        return array_values(array_filter(array_map(
+            fn (array $line): ?TaxLineData => $this->taxLineData($line, $isShipping),
+            $taxLines,
+        )));
+    }
+
+    private function taxLineData(array $line, bool $isShipping = false): ?TaxLineData
+    {
+        if ($line === []) {
+            return null;
+        }
+
+        $priceSet = $line['priceSet'] ?? $line['price'] ?? [];
+
+        return new TaxLineData(
+            shopifyTaxLineId: $line['id'] ?? null,
+            title: $line['title'] ?? null,
+            rate: (float) ($line['rate'] ?? 0),
+            ratePercentage: (float) ($line['ratePercentage'] ?? (($line['rate'] ?? 0) * 100)),
+            price: $this->amount($priceSet),
+            currency: $priceSet['shopMoney']['currencyCode'] ?? null,
+            channelLiable: array_key_exists('channelLiable', $line) ? (bool) $line['channelLiable'] : null,
+            isShipping: $isShipping,
             rawPayload: $line,
         );
     }
@@ -267,6 +366,18 @@ query GetOrders($first: Int!, $after: String) {
             currencyCode
           }
         }
+        taxLines {
+          title
+          rate
+          ratePercentage
+          channelLiable
+          priceSet {
+            shopMoney {
+              amount
+              currencyCode
+            }
+          }
+        }
         lineItems(first: 100) {
           edges {
             node {
@@ -303,6 +414,18 @@ fragment OrderLineItemFields on LineItem {
     shopMoney {
       amount
       currencyCode
+    }
+  }
+  taxLines {
+    title
+    rate
+    ratePercentage
+    channelLiable
+    priceSet {
+      shopMoney {
+        amount
+        currencyCode
+      }
     }
   }
   product {
@@ -353,6 +476,18 @@ fragment OrderLineItemFields on LineItem {
     shopMoney {
       amount
       currencyCode
+    }
+  }
+  taxLines {
+    title
+    rate
+    ratePercentage
+    channelLiable
+    priceSet {
+      shopMoney {
+        amount
+        currencyCode
+      }
     }
   }
   product {

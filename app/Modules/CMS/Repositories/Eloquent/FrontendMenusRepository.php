@@ -25,4 +25,33 @@ class FrontendMenusRepository implements MenusRepositoryInterface
             'created_at',
         );
     }
+
+    public function findForFrontend(int $id)
+    {
+        return $this->applyTenantScope(
+            $this->model->newQuery()->withCount('items')
+        )->findOrFail($id);
+    }
+
+    public function update(int $id, array $data)
+    {
+        $menu = $this->findForFrontend($id);
+        $menu->fill($data);
+        $menu->save();
+
+        return $this->findForFrontend((int) $menu->id);
+    }
+
+    public function create(array $data)
+    {
+        $menu = $this->model->newQuery()->create($data);
+
+        return $this->findForFrontend((int) $menu->id);
+    }
+
+    public function delete(int $id): void
+    {
+        $menu = $this->findForFrontend($id);
+        $menu->delete();
+    }
 }

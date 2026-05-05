@@ -31,4 +31,33 @@ class FrontendMetafieldsRepository implements MetafieldsRepositoryInterface
             'created_at',
         );
     }
+
+    public function findForFrontend(int $id)
+    {
+        return $this->applyTenantScope(
+            $this->model->newQuery()->withCount('metaobjects')
+        )->findOrFail($id);
+    }
+
+    public function update(int $id, array $data)
+    {
+        $metafield = $this->findForFrontend($id);
+        $metafield->fill($data);
+        $metafield->save();
+
+        return $this->findForFrontend((int) $metafield->id);
+    }
+
+    public function create(array $data)
+    {
+        $metafield = $this->model->newQuery()->create($data);
+
+        return $this->findForFrontend((int) $metafield->id);
+    }
+
+    public function delete(int $id): void
+    {
+        $metafield = $this->findForFrontend($id);
+        $metafield->delete();
+    }
 }

@@ -22,6 +22,7 @@ class Product extends Model
         'product_type_id',
         'category_id',
         'status',
+        'warehouse_location',
         'tags',
         'image_url',
         'price_min',

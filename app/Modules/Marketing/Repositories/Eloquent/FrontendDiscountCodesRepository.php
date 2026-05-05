@@ -53,6 +53,19 @@ class FrontendDiscountCodesRepository implements DiscountCodesRepositoryInterfac
         return $this->findForFrontend($code->id);
     }
 
+    public function create(array $data)
+    {
+        $code = $this->model->newQuery()->create($data);
+
+        return $this->findForFrontend((int) $code->id);
+    }
+
+    public function delete(int $id): void
+    {
+        $code = $this->find($id);
+        $code->delete();
+    }
+
     private function applyTenantScope($query)
     {
         $user = auth()->user();

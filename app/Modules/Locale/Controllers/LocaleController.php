@@ -12,26 +12,29 @@ class LocaleController extends Controller
     {
         App::setLocale($lang);
 
-        // مفتاح الكاش
-        $cacheKey = 'translations_admin_' . $lang . '_v2';
+        $cacheKey = 'translations_all_' . $lang . '_v3';
 
-        // جلب الترجمات من الكاش
-        $translations = Cache::remember($cacheKey, 86400, function () use ($lang) {
-            // جلب الترجمات بشكل أسرع باستخدام json
-            $path = resource_path("lang/{$lang}/admin.php");
+        $payload = Cache::remember($cacheKey, 86400, function () use ($lang) {
+            $adminPath = resource_path("lang/{$lang}/admin.php");
+            $sitePath = resource_path("lang/{$lang}/site.php");
 
-            if (file_exists($path)) {
-                return require $path;
-            }
+            $admin = file_exists($adminPath) ? require $adminPath : [];
+            $site = file_exists($sitePath) ? require $sitePath : [];
 
-            return trans('admin');
+            // Backward-compatible flat object + structured namespaces
+            return array_merge($site, $admin, [
+                'site' => $site,
+                'admin' => $admin,
+                '__meta' => [
+                    'language' => $lang,
+                    'generated_at' => now()->toIso8601String(),
+                ],
+            ]);
         });
 
-        // إضافة معلومات الكاش للـ response
-        return response()->json($translations)
-            ->withHeaders([
-                'Cache-Control' => 'public, max-age=3600',
-                'X-Cache-Status' => Cache::has($cacheKey) ? 'HIT' : 'MISS'
-            ]);
+        return response()->json($payload)->withHeaders([
+            'Cache-Control' => 'public, max-age=3600',
+            'X-Cache-Status' => Cache::has($cacheKey) ? 'HIT' : 'MISS',
+        ]);
     }
 }

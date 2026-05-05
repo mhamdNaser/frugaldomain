@@ -7,11 +7,13 @@ use App\Modules\Catalog\Repositories\Interfaces\References\CollectionsRepository
 use App\Modules\Catalog\Requests\References\CollectionsIndexRequest;
 use App\Modules\Catalog\Requests\References\UpdateCollectionRequest;
 use App\Modules\Catalog\Resources\References\CollectionTableResource;
+use App\Modules\Shopify\OutboundSync\Services\LocalChangeOutboundSyncDispatcher;
 
 class CollectionsController extends Controller
 {
     public function __construct(
-        protected CollectionsRepositoryInterface $repo
+        protected CollectionsRepositoryInterface $repo,
+        protected LocalChangeOutboundSyncDispatcher $outboundSyncDispatcher,
     ) {}
 
     public function index(CollectionsIndexRequest $request)
@@ -51,9 +53,92 @@ class CollectionsController extends Controller
 
     public function update(UpdateCollectionRequest $request, $id)
     {
+        $validated = $request->validated();
+        $updated = $this->repo->update((int) $id, $validated);
+        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+            validated: $validated,
+            storeId: (string) $updated->store_id,
+            entityType: 'collection',
+            entityId: (string) $updated->id,
+            action: 'update',
+        );
+
         return response()->json([
             'message' => 'Collection updated successfully',
-            'data' => new CollectionTableResource($this->repo->update((int) $id, $request->validated())),
+            'data' => new CollectionTableResource($updated),
+            'meta' => [
+                'outbound_sync_id' => $outboundSyncId,
+            ],
+        ]);
+    }
+
+    public function store()
+    {
+        $validated = request()->validate([
+            'store_id' => ['required', 'uuid'],
+            'title' => ['required', 'string', 'max:255'],
+            'handle' => ['nullable', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'type' => ['nullable', 'string', 'max:100'],
+            'shopify_sync' => ['sometimes', 'array'],
+            'shopify_sync.mutation' => ['sometimes', 'required_without:shopify_sync.query', 'string'],
+            'shopify_sync.query' => ['sometimes', 'required_without:shopify_sync.mutation', 'string'],
+            'shopify_sync.variables' => ['nullable', 'array'],
+            'shopify_sync.resource_path' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.user_errors_path' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.idempotency_key' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.correlation_id' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.priority' => ['nullable', 'integer', 'min:0', 'max:9'],
+            'shopify_sync.max_attempts' => ['nullable', 'integer', 'min:1', 'max:20'],
+        ]);
+
+        $created = $this->repo->create($validated);
+        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+            validated: $validated,
+            storeId: (string) $created->store_id,
+            entityType: 'collection',
+            entityId: (string) $created->id,
+            action: 'create',
+        );
+
+        return response()->json([
+            'message' => 'Collection created successfully',
+            'data' => new CollectionTableResource($created),
+            'meta' => ['outbound_sync_id' => $outboundSyncId],
+        ], 201);
+    }
+
+    public function destroy(int $id)
+    {
+        $validated = request()->validate([
+            'shopify_sync' => ['sometimes', 'array'],
+            'shopify_sync.mutation' => ['sometimes', 'required_without:shopify_sync.query', 'string'],
+            'shopify_sync.query' => ['sometimes', 'required_without:shopify_sync.mutation', 'string'],
+            'shopify_sync.variables' => ['nullable', 'array'],
+            'shopify_sync.resource_path' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.user_errors_path' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.idempotency_key' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.correlation_id' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.priority' => ['nullable', 'integer', 'min:0', 'max:9'],
+            'shopify_sync.max_attempts' => ['nullable', 'integer', 'min:1', 'max:20'],
+        ]);
+
+        $collection = $this->repo->find((int) $id);
+        $storeId = (string) $collection->store_id;
+        $entityId = (string) $collection->id;
+        $this->repo->delete((int) $id);
+
+        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+            validated: $validated,
+            storeId: $storeId,
+            entityType: 'collection',
+            entityId: $entityId,
+            action: 'delete',
+        );
+
+        return response()->json([
+            'message' => 'Collection deleted successfully',
+            'meta' => ['outbound_sync_id' => $outboundSyncId],
         ]);
     }
 

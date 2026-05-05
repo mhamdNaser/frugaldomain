@@ -3,6 +3,7 @@
 namespace App\Modules\Orders\Resources;
 
 use App\Modules\Catalog\Resources\ProductFileResource;
+use App\Modules\Tax\Resources\TaxLineResource;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class OrderLineItemResource extends JsonResource
@@ -22,6 +23,7 @@ class OrderLineItemResource extends JsonResource
             'quantity' => $this->quantity,
             'unit_price' => $this->unit_price,
             'total_price' => $this->total_price,
+            'tax_lines' => TaxLineResource::collection($this->whenLoaded('taxLines')),
             'variant' => $this->whenLoaded('variant', fn () => [
                 'id' => $this->variant?->id,
                 'title' => $this->variant?->title,

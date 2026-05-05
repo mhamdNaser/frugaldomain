@@ -7,8 +7,10 @@ Route::prefix('admin')->group(function () {
     Route::middleware(['auth:sanctum', 'role:partner'])->group(function () {
         Route::controller(ShippingZoneController::class)->group(function () {
             Route::post('allShippingZones', 'index');
+            Route::post('shipping-zones', 'store');
             Route::get('shipping-zones/{id}', 'show');
             Route::put('shipping-zones/{id}', 'update');
+            Route::delete('shipping-zones/{id}', 'destroy');
         });
     });
 });

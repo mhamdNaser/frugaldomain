@@ -7,11 +7,13 @@ use App\Modules\Catalog\Repositories\Interfaces\References\VendorsRepositoryInte
 use App\Modules\Catalog\Requests\References\UpdateVendorRequest;
 use App\Modules\Catalog\Requests\References\VendorsIndexRequest;
 use App\Modules\Catalog\Resources\References\VendorTableResource;
+use App\Modules\Shopify\OutboundSync\Services\LocalChangeOutboundSyncDispatcher;
 
 class VendorsController extends Controller
 {
     public function __construct(
-        protected VendorsRepositoryInterface $repo
+        protected VendorsRepositoryInterface $repo,
+        protected LocalChangeOutboundSyncDispatcher $outboundSyncDispatcher,
     ) {}
 
     public function index(VendorsIndexRequest $request)
@@ -51,9 +53,93 @@ class VendorsController extends Controller
 
     public function update(UpdateVendorRequest $request, $id)
     {
+        $validated = $request->validated();
+        $updated = $this->repo->update((int) $id, $validated);
+        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+            validated: $validated,
+            storeId: (string) $updated->store_id,
+            entityType: 'vendor',
+            entityId: (string) $updated->id,
+            action: 'update',
+        );
+
         return response()->json([
             'message' => 'Vendor updated successfully',
-            'data' => new VendorTableResource($this->repo->update((int) $id, $request->validated())),
+            'data' => new VendorTableResource($updated),
+            'meta' => ['outbound_sync_id' => $outboundSyncId],
+        ]);
+    }
+
+    public function store()
+    {
+        $validated = request()->validate([
+            'store_id' => ['required', 'uuid'],
+            'shopify_vendor_id' => ['nullable', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
+            'slug' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'is_active' => ['sometimes', 'boolean'],
+            'meta_title' => ['nullable', 'string', 'max:255'],
+            'meta_description' => ['nullable', 'string', 'max:255'],
+            'shopify_sync' => ['sometimes', 'array'],
+            'shopify_sync.mutation' => ['sometimes', 'required_without:shopify_sync.query', 'string'],
+            'shopify_sync.query' => ['sometimes', 'required_without:shopify_sync.mutation', 'string'],
+            'shopify_sync.variables' => ['nullable', 'array'],
+            'shopify_sync.resource_path' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.user_errors_path' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.idempotency_key' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.correlation_id' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.priority' => ['nullable', 'integer', 'min:0', 'max:9'],
+            'shopify_sync.max_attempts' => ['nullable', 'integer', 'min:1', 'max:20'],
+        ]);
+
+        $created = $this->repo->create($validated);
+        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+            validated: $validated,
+            storeId: (string) $created->store_id,
+            entityType: 'vendor',
+            entityId: (string) $created->id,
+            action: 'create',
+        );
+
+        return response()->json([
+            'message' => 'Vendor created successfully',
+            'data' => new VendorTableResource($created),
+            'meta' => ['outbound_sync_id' => $outboundSyncId],
+        ], 201);
+    }
+
+    public function destroy(int $id)
+    {
+        $validated = request()->validate([
+            'shopify_sync' => ['sometimes', 'array'],
+            'shopify_sync.mutation' => ['sometimes', 'required_without:shopify_sync.query', 'string'],
+            'shopify_sync.query' => ['sometimes', 'required_without:shopify_sync.mutation', 'string'],
+            'shopify_sync.variables' => ['nullable', 'array'],
+            'shopify_sync.resource_path' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.user_errors_path' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.idempotency_key' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.correlation_id' => ['nullable', 'string', 'max:255'],
+            'shopify_sync.priority' => ['nullable', 'integer', 'min:0', 'max:9'],
+            'shopify_sync.max_attempts' => ['nullable', 'integer', 'min:1', 'max:20'],
+        ]);
+
+        $vendor = $this->repo->find((int) $id);
+        $storeId = (string) $vendor->store_id;
+        $entityId = (string) $vendor->id;
+        $this->repo->delete((int) $id);
+
+        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+            validated: $validated,
+            storeId: $storeId,
+            entityType: 'vendor',
+            entityId: $entityId,
+            action: 'delete',
+        );
+
+        return response()->json([
+            'message' => 'Vendor deleted successfully',
+            'meta' => ['outbound_sync_id' => $outboundSyncId],
         ]);
     }
 

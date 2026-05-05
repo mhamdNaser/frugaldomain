@@ -39,6 +39,28 @@ class FrontendArticlesRepository implements ArticlesRepositoryInterface
             ->findOrFail($id);
     }
 
+    public function update(int $id, array $data)
+    {
+        $article = $this->findForFrontend($id);
+        $article->fill($data);
+        $article->save();
+
+        return $this->findForFrontend((int) $article->id);
+    }
+
+    public function create(array $data)
+    {
+        $article = $this->model->newQuery()->create($data);
+
+        return $this->findForFrontend((int) $article->id);
+    }
+
+    public function delete(int $id): void
+    {
+        $article = $this->findForFrontend($id);
+        $article->delete();
+    }
+
     private function applyTenantScope($query)
     {
         $user = auth()->user();

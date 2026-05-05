@@ -25,4 +25,31 @@ class FrontendPagesRepository implements PagesRepositoryInterface
             'published_at',
         );
     }
+
+    public function findForFrontend(int $id)
+    {
+        return $this->applyTenantScope($this->model->newQuery())->findOrFail($id);
+    }
+
+    public function update(int $id, array $data)
+    {
+        $page = $this->findForFrontend($id);
+        $page->fill($data);
+        $page->save();
+
+        return $this->findForFrontend((int) $page->id);
+    }
+
+    public function create(array $data)
+    {
+        $page = $this->model->newQuery()->create($data);
+
+        return $this->findForFrontend((int) $page->id);
+    }
+
+    public function delete(int $id): void
+    {
+        $page = $this->findForFrontend($id);
+        $page->delete();
+    }
 }

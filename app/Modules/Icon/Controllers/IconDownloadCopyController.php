@@ -3,13 +3,35 @@
 namespace App\Modules\Icon\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Icon\Models\Icon;
 use App\Modules\Icon\Models\IconDownloads;
 use App\Modules\Icon\Models\IconFiles;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class IconDownloadCopyController extends Controller
 {
+    private function resolveUserIdFromRequest(Request $request): ?int
+    {
+        $user = $request->user('sanctum') ?? auth('sanctum')->user();
+        if ($user) {
+            return (int) $user->getKey();
+        }
+
+        $plainToken = $request->bearerToken();
+        if (!$plainToken) {
+            return null;
+        }
+
+        $accessToken = PersonalAccessToken::findToken($plainToken);
+        if (!$accessToken || !$accessToken->tokenable) {
+            return null;
+        }
+
+        return (int) $accessToken->tokenable->getKey();
+    }
+
     public function download($fileName)
     {
 
@@ -32,9 +54,21 @@ class IconDownloadCopyController extends Controller
     {
         $iconFile = IconFiles::with('icon')
             ->where('file_name', $fileName)
+            ->orWhere('file_path', 'like', '%' . $fileName)
             ->first();
 
-        if (!$iconFile) {
+        $icon = $iconFile?->icon;
+        $downloadType = $iconFile?->file_type ?? strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+
+        // Fallback: if file is not in icon_files, try matching directly against icons.file_svg / icons.file_png
+        if (!$icon) {
+            $icon = Icon::query()
+                ->where('file_svg', 'like', '%' . $fileName)
+                ->orWhere('file_png', 'like', '%' . $fileName)
+                ->first();
+        }
+
+        if (!$icon) {
             return response()->json([
                 'success' => false,
                 'message' => 'Icon file not found.',
@@ -42,36 +76,28 @@ class IconDownloadCopyController extends Controller
             ], 404);
         }
 
-        if (!$iconFile->icon) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Related icon not found.',
-                'file_name' => $fileName,
-            ], 404);
-        }
-
         IconDownloads::create([
-            'user_id'       => auth()->id(),
-            'icon_id'       => $iconFile->icon->id,
-            'icon_file_id'  => $iconFile->id,
-            'download_type' => $iconFile->file_type,
+            'user_id'       => $this->resolveUserIdFromRequest($request),
+            'icon_id'       => $icon->id,
+            'icon_file_id'  => $iconFile?->id,
+            'download_type' => in_array($downloadType, ['svg', 'png']) ? $downloadType : 'svg',
             'ip_address'    => $request->ip(),
             'downloaded_at' => now(),
         ]);
 
         if (Schema::hasColumn('icons', 'download_count')) {
-            $iconFile->icon->increment('download_count');
-            $iconFile->icon->refresh();
+            $icon->increment('download_count');
+            $icon->refresh();
         }
 
         return response()->json([
             'success' => true,
             'message' => 'Download counted successfully.',
-            'download_count' => $iconFile->icon->download_count ?? null,
-            'icon_id' => $iconFile->icon->id,
-            'icon_file_id' => $iconFile->id,
-            'file_name' => $iconFile->file_name,
-            'file_type' => $iconFile->file_type,
+            'download_count' => $icon->download_count ?? null,
+            'icon_id' => $icon->id,
+            'icon_file_id' => $iconFile?->id,
+            'file_name' => $iconFile?->file_name ?? $fileName,
+            'file_type' => $iconFile?->file_type ?? $downloadType,
         ]);
     }
 

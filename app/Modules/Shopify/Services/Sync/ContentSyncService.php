@@ -305,17 +305,25 @@ class ContentSyncService
             ],
         );
 
+        $this->deduplicateMenuItems($menu);
+
         return $this->upsertMenuItems($store, $menu, $data->items);
     }
 
     private function upsertMenuItems(Store $store, Menu $menu, array $items, ?MenuItem $parent = null): int
     {
         $count = 0;
+        $seenIds = [];
 
         foreach ($items as $itemData) {
             if (!$itemData instanceof MenuItemData) {
                 continue;
             }
+
+            if (isset($seenIds[$itemData->shopifyMenuItemId])) {
+                continue;
+            }
+            $seenIds[$itemData->shopifyMenuItemId] = true;
 
             $item = MenuItem::query()->updateOrCreate(
                 [
@@ -340,6 +348,23 @@ class ContentSyncService
         }
 
         return $count;
+    }
+
+    private function deduplicateMenuItems(Menu $menu): void
+    {
+        MenuItem::query()
+            ->where('menu_id', $menu->id)
+            ->whereNotNull('shopify_menu_item_id')
+            ->selectRaw('MAX(id) as keep_id, shopify_menu_item_id')
+            ->groupBy('shopify_menu_item_id')
+            ->get()
+            ->each(function ($row) use ($menu): void {
+                MenuItem::query()
+                    ->where('menu_id', $menu->id)
+                    ->where('shopify_menu_item_id', $row->shopify_menu_item_id)
+                    ->where('id', '!=', (int) $row->keep_id)
+                    ->delete();
+            });
     }
 
     private function pageData(array $node): CmsPageData

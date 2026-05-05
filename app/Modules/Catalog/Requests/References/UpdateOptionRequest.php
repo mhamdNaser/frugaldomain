@@ -15,6 +15,9 @@ class UpdateOptionRequest extends FormRequest
     {
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'values' => ['nullable', 'array'],
+            'values.*.label' => ['required_with:values', 'string', 'max:255'],
+            'values.*.value' => ['required_with:values', 'string', 'max:255'],
         ];
     }
 }

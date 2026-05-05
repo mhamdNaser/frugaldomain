@@ -23,5 +23,6 @@ class OrderData
         public readonly ?string $shopifyUpdatedAt,
         public readonly array $rawPayload,
         public readonly array $items = [],
+        public readonly array $taxLines = [],
     ) {}
 }

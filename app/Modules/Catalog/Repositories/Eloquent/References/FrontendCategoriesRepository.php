@@ -42,6 +42,13 @@ class FrontendCategoriesRepository implements CategoriesRepositoryInterface
             ->findOrFail($id);
     }
 
+    public function create(array $data)
+    {
+        $category = $this->model->newQuery()->create($data);
+
+        return $this->findForFrontend((int) $category->id);
+    }
+
     public function update(int $id, array $data)
     {
         $category = $this->find($id);
@@ -49,6 +56,12 @@ class FrontendCategoriesRepository implements CategoriesRepositoryInterface
         $category->save();
 
         return $this->findForFrontend($category->id);
+    }
+
+    public function delete(int $id): void
+    {
+        $category = $this->find($id);
+        $category->delete();
     }
 
     private function applyTenantScope($query)

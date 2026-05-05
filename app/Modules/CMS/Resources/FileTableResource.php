@@ -23,6 +23,7 @@ class FileTableResource extends JsonResource
             'height' => $this->height,
             'dimensions' => $this->width && $this->height ? "{$this->width} x {$this->height}" : null,
             'altText' => $this->altText,
+            'title' => $this->altText ?: data_get($this->meta, 'alt') ?: data_get($this->meta, 'filename') ?: ("File #" . $this->id),
             'position' => $this->position,
             'fileable_type' => $this->fileable_type,
             'fileable_label' => $this->fileableLabel(),

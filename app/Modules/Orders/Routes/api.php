@@ -17,8 +17,11 @@ Route::prefix('admin')->group(function () {
         
         Route::controller(OrderController::class)->group(function () {
             Route::post('allOrders', 'index');
+            Route::post('orders/admin-create', 'createFromAdmin');
+            Route::post('orders', 'store');
             Route::get('orders/{id}', 'show');
             Route::put('orders/{id}', 'update');
+            Route::delete('orders/{id}', 'destroy');
         });
 
         Route::controller(OrderItemController::class)->group(function () {

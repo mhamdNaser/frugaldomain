@@ -58,6 +58,19 @@ class FrontendCollectionsRepository implements CollectionsRepositoryInterface
         return $this->findForFrontend($collection->id);
     }
 
+    public function create(array $data)
+    {
+        $collection = $this->model->newQuery()->create($data);
+
+        return $this->findForFrontend((int) $collection->id);
+    }
+
+    public function delete(int $id): void
+    {
+        $collection = $this->find($id);
+        $collection->delete();
+    }
+
     public function toggleStatus(int $id)
     {
         $collection = $this->find($id);

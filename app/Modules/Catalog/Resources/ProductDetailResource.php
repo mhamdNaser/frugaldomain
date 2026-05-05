@@ -84,6 +84,13 @@ class ProductDetailResource extends ProductTableResource
                     : [],
             ])->values()),
             'option_ids' => $this->whenLoaded('options', fn() => $this->options->pluck('id')->values()),
+            'tag_details' => $this->whenLoaded('tags', fn() => $this->resource->getRelation('tags')->map(fn($tag) => [
+                'id' => $tag->id,
+                'store_id' => $tag->store_id ?? null,
+                'name' => $tag->name,
+                'slug' => $tag->slug,
+            ])->values()),
+            'tag_ids' => $this->whenLoaded('tags', fn() => $this->resource->getRelation('tags')->pluck('id')->values()),
             'metafields' => $this->whenLoaded('metafields', fn() => $this->metafields->map(fn($metafield) => [
                 'id' => $metafield->id,
                 'store_id' => $metafield->store_id ?? null,

@@ -2,6 +2,7 @@
 
 use App\Modules\Shopify\Controllers\ShopifyProductsSyncController;
 use App\Modules\Shopify\Controllers\ShopifyDataSyncController;
+use App\Modules\Shopify\Controllers\ShopifyOutboundSyncController;
 use App\Modules\Shopify\Controllers\StoreConnectionController;
 use App\Modules\Shopify\Controllers\ShopifyWebhookController;
 use App\Modules\Shopify\Controllers\ShopifyWebhookSecretController;
@@ -42,6 +43,11 @@ Route::prefix('admin')->group(function () {
         Route::post('/sync/themes', [ShopifyDataSyncController::class, 'themes']);
         Route::post('/sync/commerce', [ShopifyDataSyncController::class, 'commerce']);
         Route::post('/sync/bootstrap', [ShopifyDataSyncController::class, 'bootstrap']);
+
+        Route::get('/sync/outbound', [ShopifyOutboundSyncController::class, 'index']);
+        Route::post('/sync/outbound/queue', [ShopifyOutboundSyncController::class, 'queue']);
+        Route::post('/sync/outbound/dispatch-due', [ShopifyOutboundSyncController::class, 'dispatchDue']);
+        Route::post('/sync/outbound/{id}/retry', [ShopifyOutboundSyncController::class, 'retry']);
     });
 
     Route::middleware(['auth:sanctum', 'role:partner|admin'])->group(function () {

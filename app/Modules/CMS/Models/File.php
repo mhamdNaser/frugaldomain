@@ -16,6 +16,7 @@ class File extends Model
         'path',
         'url',
         'mime_type',
+        'size',
         'width',
         'height',
         'altText',
@@ -51,6 +52,18 @@ class File extends Model
     public function scopeRole($query, string $role)
     {
         return $query->where('role', $role);
+    }
+
+    public function scopeVariantImages($query)
+    {
+        return $query->images()->role('variant_image');
+    }
+
+    public function scopeForFileable($query, string $fileableType, int $fileableId)
+    {
+        return $query
+            ->where('fileable_type', $fileableType)
+            ->where('fileable_id', $fileableId);
     }
 
 

@@ -14,14 +14,18 @@ Route::prefix('admin')->group(function () {
     Route::middleware(['auth:sanctum', 'role:partner'])->group(function () {
         Route::controller(DiscountController::class)->group(function () {
             Route::post('allDiscounts', 'index');
+            Route::post('discounts', 'store');
             Route::get('discounts/{id}', 'show');
             Route::put('discounts/{id}', 'update');
+            Route::delete('discounts/{id}', 'destroy');
         });
 
         Route::controller(DiscountCodeController::class)->group(function () {
             Route::post('allDiscountCodes', 'index');
+            Route::post('discount-codes', 'store');
             Route::get('discount-codes/{id}', 'show');
             Route::put('discount-codes/{id}', 'update');
+            Route::delete('discount-codes/{id}', 'destroy');
         });
 
         Route::controller(DiscountUsageController::class)->group(function () {
