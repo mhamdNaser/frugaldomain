@@ -8,6 +8,7 @@ use App\Modules\Core\Controllers\DashboardStatisticsController;
 use App\Modules\Core\Controllers\SyncMonitorController;
 use App\Modules\Core\Controllers\WebhookLogsController;
 use App\Modules\Core\Controllers\WebhookSubscriptionsController;
+use App\Modules\Core\Controllers\PartnerNotificationController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -26,6 +27,10 @@ Route::prefix('admin')->group(function () {
 
     Route::middleware(['auth:sanctum', 'role:partner'])->group(function () {
         Route::get('dashboard/partner-statistics', [DashboardStatisticsController::class, 'partner']);
+        Route::get('partner/notifications', [PartnerNotificationController::class, 'index']);
+        Route::get('partner/notifications/{id}', [PartnerNotificationController::class, 'show']);
+        Route::post('partner/notifications/{id}/read', [PartnerNotificationController::class, 'markAsRead']);
+        Route::post('partner/notifications/read-all', [PartnerNotificationController::class, 'markAllAsRead']);
     });
 
     Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {

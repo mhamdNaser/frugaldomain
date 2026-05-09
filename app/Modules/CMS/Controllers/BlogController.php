@@ -9,6 +9,7 @@ use App\Modules\CMS\Requests\BlogsIndexRequest;
 use App\Modules\CMS\Requests\UpdateBlogRequest;
 use App\Modules\CMS\Resources\BlogTableResource;
 use App\Modules\Shopify\OutboundSync\Services\LocalChangeOutboundSyncDispatcher;
+use App\Modules\Shopify\OutboundSync\Services\ShopifyFirstSyncService;
 
 class BlogController extends Controller
 {
@@ -17,6 +18,7 @@ class BlogController extends Controller
     public function __construct(
         protected BlogsRepositoryInterface $repo,
         protected LocalChangeOutboundSyncDispatcher $outboundSyncDispatcher,
+        protected ShopifyFirstSyncService $shopifyFirstSyncService,
     ) {}
 
     public function index(BlogsIndexRequest $request)
@@ -39,8 +41,10 @@ class BlogController extends Controller
     public function update(UpdateBlogRequest $request, int $id)
     {
         $validated = $request->validated();
+        $current = $this->repo->findForFrontend($id);
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $current->store_id);
         $updated = $this->repo->update($id, $validated);
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $updated->store_id,
             entityType: 'blog',
@@ -60,8 +64,9 @@ class BlogController extends Controller
     public function store(UpdateBlogRequest $request)
     {
         $validated = $request->validated();
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $validated['store_id']);
         $created = $this->repo->create($validated);
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $created->store_id,
             entityType: 'blog',
@@ -94,9 +99,10 @@ class BlogController extends Controller
         $blog = $this->repo->findForFrontend($id);
         $storeId = (string) $blog->store_id;
         $entityId = (string) $blog->id;
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, $storeId);
         $this->repo->delete($id);
 
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: $storeId,
             entityType: 'blog',

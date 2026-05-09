@@ -9,6 +9,7 @@ use App\Modules\User\Requests\Customer\UpdateCustomerRequest;
 use App\Modules\User\Resources\CustomerDetailResource;
 use App\Modules\User\Resources\CustomerTableResource;
 use App\Modules\Shopify\OutboundSync\Services\LocalChangeOutboundSyncDispatcher;
+use App\Modules\Shopify\OutboundSync\Services\ShopifyFirstSyncService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -17,6 +18,7 @@ class CustomerController extends Controller
     public function __construct(
         protected CustomerRepositoryInterface $repo,
         protected LocalChangeOutboundSyncDispatcher $outboundSyncDispatcher,
+        protected ShopifyFirstSyncService $shopifyFirstSyncService,
     ) {}
 
     public function index(CustomersIndexRequest $request): JsonResponse
@@ -62,8 +64,9 @@ class CustomerController extends Controller
     {
         $validated = $request->validated();
         $storeId = $this->resolveStoreId($request);
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, $storeId);
         $customer = $this->repo->createForStore($storeId, $validated);
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $customer->store_id,
             entityType: 'customer',
@@ -83,8 +86,10 @@ class CustomerController extends Controller
     public function update(UpdateCustomerRequest $request, int $id): JsonResponse
     {
         $validated = $request->validated();
-        $customer = $this->repo->updateForStore($this->resolveStoreId($request), $id, $validated);
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+        $storeId = $this->resolveStoreId($request);
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, $storeId);
+        $customer = $this->repo->updateForStore($storeId, $id, $validated);
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $customer->store_id,
             entityType: 'customer',
@@ -124,9 +129,10 @@ class CustomerController extends Controller
         }
 
         $entityId = (string) $customer->id;
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $storeId);
         $this->repo->deleteForStore($storeId, $id);
 
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $storeId,
             entityType: 'customer',

@@ -13,6 +13,7 @@ use App\Modules\Orders\Requests\UpdateOrderRequest;
 use App\Modules\Orders\Resources\OrderTableResource;
 use App\Modules\Orders\Services\AdminOrderShopifySyncService;
 use App\Modules\Shopify\OutboundSync\Services\LocalChangeOutboundSyncDispatcher;
+use App\Modules\Shopify\OutboundSync\Services\ShopifyFirstSyncService;
 use App\Modules\Stores\Models\Store;
 use App\Modules\Tax\Models\TaxLine;
 use App\Modules\User\Models\Customer;
@@ -25,6 +26,7 @@ class OrderController extends Controller
     public function __construct(
         protected OrdersRepositoryInterface $repo,
         protected LocalChangeOutboundSyncDispatcher $outboundSyncDispatcher,
+        protected ShopifyFirstSyncService $shopifyFirstSyncService,
         protected AdminOrderShopifySyncService $adminOrderShopifySyncService,
     ) {}
 
@@ -67,8 +69,10 @@ class OrderController extends Controller
     public function update(UpdateOrderRequest $request, $id)
     {
         $validated = $request->validated();
+        $current = $this->repo->find((int) $id);
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $current->store_id);
         $updated = $this->repo->update((int) $id, $validated);
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $updated->store_id,
             entityType: 'order',
@@ -108,8 +112,9 @@ class OrderController extends Controller
             'shopify_sync.max_attempts' => ['nullable', 'integer', 'min:1', 'max:20'],
         ]);
 
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $validated['store_id']);
         $created = $this->repo->create($validated);
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $created->store_id,
             entityType: 'order',
@@ -237,17 +242,15 @@ class OrderController extends Controller
                     sendReceipt: (bool) ($validated['send_receipt'] ?? false),
                 );
             } catch (Throwable $exception) {
-                $rawPayload = $order->raw_payload ?? [];
-                $rawPayload['shopify_sync_error'] = [
-                    'message' => $exception->getMessage(),
-                    'failed_at' => now()->toIso8601String(),
-                ];
-                $order->forceFill(['raw_payload' => $rawPayload])->save();
+                DB::transaction(function () use ($order) {
+                    $order->items()->delete();
+                    $order->taxLines()->delete();
+                    $order->delete();
+                });
 
                 return response()->json([
-                    'message' => 'Order was created locally, but Shopify sync failed.',
+                    'message' => 'Order sync failed on Shopify. No local order was saved.',
                     'error' => $exception->getMessage(),
-                    'data' => new OrderDetailResource($this->repo->findForFrontend((int) $order->id)),
                     'meta' => [
                         'synced_to_shopify' => false,
                     ],
@@ -282,9 +285,10 @@ class OrderController extends Controller
         $order = $this->repo->find((int) $id);
         $storeId = (string) $order->store_id;
         $entityId = (string) $order->id;
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, $storeId);
         $this->repo->delete((int) $id);
 
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: $storeId,
             entityType: 'order',

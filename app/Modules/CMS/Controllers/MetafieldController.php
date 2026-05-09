@@ -9,6 +9,7 @@ use App\Modules\CMS\Requests\MetafieldsIndexRequest;
 use App\Modules\CMS\Requests\UpdateMetafieldRequest;
 use App\Modules\CMS\Resources\MetafieldTableResource;
 use App\Modules\Shopify\OutboundSync\Services\LocalChangeOutboundSyncDispatcher;
+use App\Modules\Shopify\OutboundSync\Services\ShopifyFirstSyncService;
 
 class MetafieldController extends Controller
 {
@@ -17,6 +18,7 @@ class MetafieldController extends Controller
     public function __construct(
         protected MetafieldsRepositoryInterface $repo,
         protected LocalChangeOutboundSyncDispatcher $outboundSyncDispatcher,
+        protected ShopifyFirstSyncService $shopifyFirstSyncService,
     ) {}
 
     public function index(MetafieldsIndexRequest $request)
@@ -39,8 +41,10 @@ class MetafieldController extends Controller
     public function update(UpdateMetafieldRequest $request, int $id)
     {
         $validated = $request->validated();
+        $current = $this->repo->findForFrontend($id);
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $current->store_id);
         $updated = $this->repo->update($id, $validated);
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $updated->store_id,
             entityType: 'metafield',
@@ -60,8 +64,9 @@ class MetafieldController extends Controller
     public function store(UpdateMetafieldRequest $request)
     {
         $validated = $request->validated();
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $validated['store_id']);
         $created = $this->repo->create($validated);
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $created->store_id,
             entityType: 'metafield',
@@ -94,9 +99,10 @@ class MetafieldController extends Controller
         $metafield = $this->repo->findForFrontend($id);
         $storeId = (string) $metafield->store_id;
         $entityId = (string) $metafield->id;
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, $storeId);
         $this->repo->delete($id);
 
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: $storeId,
             entityType: 'metafield',

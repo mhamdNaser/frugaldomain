@@ -9,6 +9,7 @@ use App\Modules\CMS\Requests\MenusIndexRequest;
 use App\Modules\CMS\Requests\UpdateMenuRequest;
 use App\Modules\CMS\Resources\MenuTableResource;
 use App\Modules\Shopify\OutboundSync\Services\LocalChangeOutboundSyncDispatcher;
+use App\Modules\Shopify\OutboundSync\Services\ShopifyFirstSyncService;
 
 class MenuController extends Controller
 {
@@ -17,6 +18,7 @@ class MenuController extends Controller
     public function __construct(
         protected MenusRepositoryInterface $repo,
         protected LocalChangeOutboundSyncDispatcher $outboundSyncDispatcher,
+        protected ShopifyFirstSyncService $shopifyFirstSyncService,
     ) {}
 
     public function index(MenusIndexRequest $request)
@@ -39,8 +41,10 @@ class MenuController extends Controller
     public function update(UpdateMenuRequest $request, int $id)
     {
         $validated = $request->validated();
+        $current = $this->repo->findForFrontend($id);
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $current->store_id);
         $updated = $this->repo->update($id, $validated);
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $updated->store_id,
             entityType: 'menu',
@@ -60,8 +64,9 @@ class MenuController extends Controller
     public function store(UpdateMenuRequest $request)
     {
         $validated = $request->validated();
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $validated['store_id']);
         $created = $this->repo->create($validated);
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $created->store_id,
             entityType: 'menu',
@@ -94,9 +99,10 @@ class MenuController extends Controller
         $menu = $this->repo->findForFrontend($id);
         $storeId = (string) $menu->store_id;
         $entityId = (string) $menu->id;
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, $storeId);
         $this->repo->delete($id);
 
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: $storeId,
             entityType: 'menu',

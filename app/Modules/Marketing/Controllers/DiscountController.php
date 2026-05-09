@@ -8,12 +8,14 @@ use App\Modules\Marketing\Requests\DiscountsIndexRequest;
 use App\Modules\Marketing\Requests\UpdateDiscountRequest;
 use App\Modules\Marketing\Resources\DiscountTableResource;
 use App\Modules\Shopify\OutboundSync\Services\LocalChangeOutboundSyncDispatcher;
+use App\Modules\Shopify\OutboundSync\Services\ShopifyFirstSyncService;
 
 class DiscountController extends Controller
 {
     public function __construct(
         protected DiscountsRepositoryInterface $repo,
         protected LocalChangeOutboundSyncDispatcher $outboundSyncDispatcher,
+        protected ShopifyFirstSyncService $shopifyFirstSyncService,
     ) {}
 
     public function index(DiscountsIndexRequest $request)
@@ -54,8 +56,10 @@ class DiscountController extends Controller
     public function update(UpdateDiscountRequest $request, $id)
     {
         $validated = $request->validated();
+        $current = $this->repo->find((int) $id);
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $current->store_id);
         $updated = $this->repo->update((int) $id, $validated);
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $updated->store_id,
             entityType: 'discount',
@@ -93,8 +97,9 @@ class DiscountController extends Controller
             'shopify_sync.max_attempts' => ['nullable', 'integer', 'min:1', 'max:20'],
         ]);
 
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $validated['store_id']);
         $created = $this->repo->create($validated);
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $created->store_id,
             entityType: 'discount',
@@ -127,9 +132,10 @@ class DiscountController extends Controller
         $discount = $this->repo->find((int) $id);
         $storeId = (string) $discount->store_id;
         $entityId = (string) $discount->id;
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, $storeId);
         $this->repo->delete((int) $id);
 
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: $storeId,
             entityType: 'discount',

@@ -9,6 +9,7 @@ use App\Modules\CMS\Requests\PagesIndexRequest;
 use App\Modules\CMS\Requests\UpdatePageRequest;
 use App\Modules\CMS\Resources\PageTableResource;
 use App\Modules\Shopify\OutboundSync\Services\LocalChangeOutboundSyncDispatcher;
+use App\Modules\Shopify\OutboundSync\Services\ShopifyFirstSyncService;
 
 class PageController extends Controller
 {
@@ -17,6 +18,7 @@ class PageController extends Controller
     public function __construct(
         protected PagesRepositoryInterface $repo,
         protected LocalChangeOutboundSyncDispatcher $outboundSyncDispatcher,
+        protected ShopifyFirstSyncService $shopifyFirstSyncService,
     ) {}
 
     public function index(PagesIndexRequest $request)
@@ -39,8 +41,10 @@ class PageController extends Controller
     public function update(UpdatePageRequest $request, int $id)
     {
         $validated = $request->validated();
+        $current = $this->repo->findForFrontend($id);
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $current->store_id);
         $updated = $this->repo->update($id, $validated);
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $updated->store_id,
             entityType: 'page',
@@ -60,8 +64,9 @@ class PageController extends Controller
     public function store(UpdatePageRequest $request)
     {
         $validated = $request->validated();
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $validated['store_id']);
         $created = $this->repo->create($validated);
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $created->store_id,
             entityType: 'page',
@@ -94,9 +99,10 @@ class PageController extends Controller
         $page = $this->repo->findForFrontend($id);
         $storeId = (string) $page->store_id;
         $entityId = (string) $page->id;
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, $storeId);
         $this->repo->delete($id);
 
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: $storeId,
             entityType: 'page',

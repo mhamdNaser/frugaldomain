@@ -11,6 +11,7 @@ use App\Modules\CMS\Requests\UpdateArticleRequest;
 use App\Modules\CMS\Resources\ArticleDetailResource;
 use App\Modules\CMS\Resources\ArticleTableResource;
 use App\Modules\Shopify\OutboundSync\Services\LocalChangeOutboundSyncDispatcher;
+use App\Modules\Shopify\OutboundSync\Services\ShopifyFirstSyncService;
 
 class ArticleController extends Controller
 {
@@ -19,6 +20,7 @@ class ArticleController extends Controller
     public function __construct(
         protected ArticlesRepositoryInterface $repo,
         protected LocalChangeOutboundSyncDispatcher $outboundSyncDispatcher,
+        protected ShopifyFirstSyncService $shopifyFirstSyncService,
     ) {}
 
     public function index(ArticlesIndexRequest $request)
@@ -43,8 +45,10 @@ class ArticleController extends Controller
     public function update(UpdateArticleRequest $request, int $id)
     {
         $validated = $request->validated();
+        $current = $this->repo->findForFrontend($id);
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $current->store_id);
         $updated = $this->repo->update($id, $validated);
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $updated->store_id,
             entityType: 'article',
@@ -64,8 +68,9 @@ class ArticleController extends Controller
     public function store(UpdateArticleRequest $request)
     {
         $validated = $request->validated();
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $validated['store_id']);
         $created = $this->repo->create($validated);
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $created->store_id,
             entityType: 'article',
@@ -98,9 +103,10 @@ class ArticleController extends Controller
         $article = $this->repo->findForFrontend($id);
         $storeId = (string) $article->store_id;
         $entityId = (string) $article->id;
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, $storeId);
         $this->repo->delete($id);
 
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: $storeId,
             entityType: 'article',

@@ -13,6 +13,7 @@ use App\Modules\Catalog\Requests\UpdateProductRequest;
 use App\Modules\Catalog\Resources\ProductDetailResource;
 use App\Modules\Catalog\Resources\ProductTableResource;
 use App\Modules\Shopify\OutboundSync\Services\LocalChangeOutboundSyncDispatcher;
+use App\Modules\Shopify\OutboundSync\Services\ShopifyFirstSyncService;
 use App\Modules\Shopify\Services\ShopifyClient;
 use App\Modules\Stores\Models\Store;
 use Illuminate\Support\Facades\DB;
@@ -26,6 +27,7 @@ class ProductController extends Controller
     public function __construct(
         ProductsRepositoryInterface $repo,
         private readonly LocalChangeOutboundSyncDispatcher $outboundSyncDispatcher,
+        private readonly ShopifyFirstSyncService $shopifyFirstSyncService,
     )
     {
         $this->repo = $repo;
@@ -96,14 +98,17 @@ class ProductController extends Controller
             'shopify_sync.max_attempts' => ['nullable', 'integer', 'min:1', 'max:20'],
         ]);
 
+        $storeId = $this->resolveStoreIdForCreate($validated);
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, $storeId);
+
         $created = $this->repo->create($validated);
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
-            validated: $validated,
-            storeId: (string) $created->store_id,
-            entityType: 'product',
-            entityId: (string) $created->id,
-            action: 'create',
-        );
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
+                validated: $validated,
+                storeId: (string) $created->store_id,
+                entityType: 'product',
+                entityId: (string) $created->id,
+                action: 'create',
+            );
 
         return response()->json([
             'message' => 'Product created successfully',
@@ -129,14 +134,15 @@ class ProductController extends Controller
     {
         $validated = $request->validated();
         $before = $this->repo->findForFrontend((int) $id);
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $before->store_id);
         $updated = $this->repo->update((int) $id, $validated);
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
-            validated: $validated,
-            storeId: (string) $updated->store_id,
-            entityType: 'product',
-            entityId: (string) $updated->id,
-            action: 'update',
-        );
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
+                validated: $validated,
+                storeId: (string) $updated->store_id,
+                entityType: 'product',
+                entityId: (string) $updated->id,
+                action: 'update',
+            );
         $autoSyncIds = $this->dispatchAutomaticProductDeltaSync($before, $updated, $validated);
 
         return response()->json([
@@ -169,15 +175,16 @@ class ProductController extends Controller
 
         $storeId = (string) $product->store_id;
         $entityId = (string) $product->id;
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, $storeId);
         $this->repo->delete((int) $product->id);
 
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
-            validated: $validated,
-            storeId: $storeId,
-            entityType: 'product',
-            entityId: $entityId,
-            action: 'delete',
-        );
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
+                validated: $validated,
+                storeId: $storeId,
+                entityType: 'product',
+                entityId: $entityId,
+                action: 'delete',
+            );
 
         return response()->json([
             'message' => 'Product deleted successfully',
@@ -214,6 +221,7 @@ class ProductController extends Controller
         ]);
 
         $product = $this->repo->find((int) $id);
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $product->store_id);
         $price = (float) $validated['price'];
         $compareAtPrice = array_key_exists('compare_at_price', $validated)
             ? ($validated['compare_at_price'] !== null ? (float) $validated['compare_at_price'] : null)
@@ -242,7 +250,7 @@ class ProductController extends Controller
 
         $outboundSyncIds = [];
         foreach ($updatedVariants as $variant) {
-            $syncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+            $syncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
                 validated: $validated,
                 storeId: (string) $product->store_id,
                 entityType: 'product_variant',
@@ -603,5 +611,22 @@ GQL,
         }
 
         return "gid://shopify/{$type}/{$normalized}";
+    }
+
+    /**
+     * @param array<string, mixed> $validated
+     */
+    private function resolveStoreIdForCreate(array $validated): string
+    {
+        $storeId = (string) ($validated['store_id'] ?? '');
+
+        if ($storeId !== '') {
+            return $storeId;
+        }
+
+        $authStoreId = (string) (auth()->user()?->store?->id ?? '');
+        abort_if($authStoreId === '', 422, 'store_id is required.');
+
+        return $authStoreId;
     }
 }

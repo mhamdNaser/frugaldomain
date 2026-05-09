@@ -10,12 +10,14 @@ use App\Modules\Inventory\Requests\UpdateInventoryRequest;
 use App\Modules\Inventory\Resources\InventoryDetailResource;
 use App\Modules\Inventory\Resources\InventoryTableResource;
 use App\Modules\Shopify\OutboundSync\Services\LocalChangeOutboundSyncDispatcher;
+use App\Modules\Shopify\OutboundSync\Services\ShopifyFirstSyncService;
 
 class InventoryController extends Controller
 {
     public function __construct(
         protected InventoriesRepositoryInterface $repo,
         protected LocalChangeOutboundSyncDispatcher $outboundSyncDispatcher,
+        protected ShopifyFirstSyncService $shopifyFirstSyncService,
     ) {}
 
     public function index(InventoriesIndexRequest $request)
@@ -56,8 +58,9 @@ class InventoryController extends Controller
     public function store(StoreInventoryRequest $request)
     {
         $validated = $request->validated();
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $validated['store_id']);
         $created = $this->repo->create($validated);
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $created->store_id,
             entityType: 'inventory_level',
@@ -75,8 +78,10 @@ class InventoryController extends Controller
     public function update(UpdateInventoryRequest $request, int $id)
     {
         $validated = $request->validated();
+        $current = $this->repo->find((int) $id);
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $current->store_id);
         $updated = $this->repo->update($id, $validated);
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $updated->store_id,
             entityType: 'inventory_level',
@@ -109,9 +114,10 @@ class InventoryController extends Controller
         $inventory = $this->repo->find((int) $id);
         $storeId = (string) $inventory->store_id;
         $entityId = (string) $inventory->id;
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, $storeId);
         $this->repo->delete($id);
 
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: $storeId,
             entityType: 'inventory_level',
@@ -125,4 +131,3 @@ class InventoryController extends Controller
         ]);
     }
 }
-

@@ -16,6 +16,9 @@ use App\Modules\CMS\Services\ShopifyFileUploadService;
 use App\Modules\Shopify\Support\ShopifyHelper;
 use App\Modules\Stores\Models\Store;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class FileController extends Controller
 {
@@ -117,13 +120,17 @@ class FileController extends Controller
 
     private function upsertLocalFile(Store $store, array $shopifyFile, ?string $fallbackMimeType = null, ?string $role = null): File
     {
-        $url = $this->extractUrl($shopifyFile);
+        $sourceUrl = $this->extractUrl($shopifyFile);
         $mimeType = $this->extractMimeType($shopifyFile) ?: $fallbackMimeType;
         $width = data_get($shopifyFile, 'image.width') ?? data_get($shopifyFile, 'preview.image.width');
         $height = data_get($shopifyFile, 'image.height') ?? data_get($shopifyFile, 'preview.image.height');
         $alt = data_get($shopifyFile, 'alt');
         $shopifyGid = (string) ($shopifyFile['id'] ?? '');
         $shopifyId = ShopifyHelper::extractId($shopifyGid);
+        $localAsset = $this->cacheShopifyAssetLocally($store, $sourceUrl, $mimeType, $role ?: 'global_file');
+        $storageUrl = $localAsset['url'] ?? $sourceUrl;
+        $disk = $localAsset['disk'] ?? 'shopify';
+        $path = $localAsset['path'] ?? $sourceUrl;
 
         return File::query()->updateOrCreate(
             [
@@ -131,9 +138,9 @@ class FileController extends Controller
                 'shopify_id' => $shopifyId ? (int) $shopifyId : null,
             ],
             [
-                'disk' => 'shopify',
-                'path' => $url,
-                'url' => $url,
+                'disk' => $disk,
+                'path' => $path,
+                'url' => $storageUrl,
                 'mime_type' => $mimeType,
                 'type' => $this->typeFromMimeAndTypename($mimeType, $shopifyFile['__typename'] ?? null),
                 'width' => $width,
@@ -143,9 +150,61 @@ class FileController extends Controller
                 'position' => 0,
                 'fileable_type' => null,
                 'fileable_id' => null,
-                'meta' => $shopifyFile,
+                'meta' => array_merge($shopifyFile, [
+                    'source_url' => $sourceUrl,
+                    'cached_locally' => (bool) ($localAsset['cached'] ?? false),
+                ]),
             ],
         );
+    }
+
+    private function cacheShopifyAssetLocally(Store $store, ?string $sourceUrl, ?string $mimeType, string $role): array
+    {
+        if (!$sourceUrl) {
+            return ['cached' => false];
+        }
+
+        try {
+            $response = Http::timeout(30)->retry(2, 300)->get($sourceUrl);
+            if (!$response->successful()) {
+                return ['cached' => false];
+            }
+
+            $extension = $this->detectExtension($sourceUrl, $mimeType);
+            $fileName = Str::uuid()->toString() . '.' . $extension;
+            $path = "shopify-cache/{$store->id}/{$role}/{$fileName}";
+
+            Storage::disk('public')->put($path, $response->body());
+
+            return [
+                'cached' => true,
+                'disk' => 'public',
+                'path' => $path,
+                'url' => Storage::disk('public')->url($path),
+            ];
+        } catch (\Throwable) {
+            return ['cached' => false];
+        }
+    }
+
+    private function detectExtension(?string $sourceUrl, ?string $mimeType): string
+    {
+        $extFromUrl = strtolower((string) pathinfo((string) parse_url((string) $sourceUrl, PHP_URL_PATH), PATHINFO_EXTENSION));
+        if ($extFromUrl !== '') {
+            return $extFromUrl;
+        }
+
+        $mime = strtolower((string) $mimeType);
+
+        return match (true) {
+            str_contains($mime, 'jpeg') => 'jpg',
+            str_contains($mime, 'png') => 'png',
+            str_contains($mime, 'webp') => 'webp',
+            str_contains($mime, 'gif') => 'gif',
+            str_contains($mime, 'svg') => 'svg',
+            str_contains($mime, 'mp4') => 'mp4',
+            default => 'bin',
+        };
     }
 
     private function attachFileToOwner(File $file, string $ownerType, int $ownerId, ?string $role = null): File

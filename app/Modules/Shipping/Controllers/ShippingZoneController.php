@@ -9,6 +9,7 @@ use App\Modules\Shipping\Requests\UpdateShippingZoneRequest;
 use App\Modules\Shipping\Resources\ShippingZoneDetailsResource;
 use App\Modules\Shipping\Resources\ShippingZoneTableResource;
 use App\Modules\Shopify\OutboundSync\Services\LocalChangeOutboundSyncDispatcher;
+use App\Modules\Shopify\OutboundSync\Services\ShopifyFirstSyncService;
 use Illuminate\Http\Request;
 
 class ShippingZoneController extends Controller
@@ -16,6 +17,7 @@ class ShippingZoneController extends Controller
     public function __construct(
         protected ShippingZonesRepositoryInterface $repo,
         protected LocalChangeOutboundSyncDispatcher $outboundSyncDispatcher,
+        protected ShopifyFirstSyncService $shopifyFirstSyncService,
     ) {}
 
     public function index(ShippingZonesIndexRequest $request)
@@ -56,8 +58,10 @@ class ShippingZoneController extends Controller
     public function update(UpdateShippingZoneRequest $request, $id)
     {
         $validated = $request->validated();
+        $current = $this->repo->find((int) $id);
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $current->store_id);
         $updated = $this->repo->update((int) $id, $validated);
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $updated->store_id,
             entityType: 'shipping_zone',
@@ -94,8 +98,9 @@ class ShippingZoneController extends Controller
             'shopify_sync.max_attempts' => ['nullable', 'integer', 'min:1', 'max:20'],
         ]);
 
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $validated['store_id']);
         $created = $this->repo->create($validated);
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $created->store_id,
             entityType: 'shipping_zone',
@@ -128,9 +133,10 @@ class ShippingZoneController extends Controller
         $zone = $this->repo->find((int) $id);
         $storeId = (string) $zone->store_id;
         $entityId = (string) $zone->id;
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, $storeId);
         $this->repo->delete((int) $id);
 
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: $storeId,
             entityType: 'shipping_zone',

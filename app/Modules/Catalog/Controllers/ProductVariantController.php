@@ -9,6 +9,7 @@ use App\Modules\Catalog\Requests\StoreProductVariantRequest;
 use App\Modules\Catalog\Requests\UpdateProductVariantRequest;
 use App\Modules\Catalog\Resources\ProductVariantResource;
 use App\Modules\Shopify\OutboundSync\Services\LocalChangeOutboundSyncDispatcher;
+use App\Modules\Shopify\OutboundSync\Services\ShopifyFirstSyncService;
 use Illuminate\Support\Arr;
 use Illuminate\Http\Request;
 
@@ -16,6 +17,7 @@ class ProductVariantController extends Controller
 {
     public function __construct(
         protected LocalChangeOutboundSyncDispatcher $outboundSyncDispatcher,
+        protected ShopifyFirstSyncService $shopifyFirstSyncService,
     ) {}
 
     public function show(int $id)
@@ -79,19 +81,20 @@ class ProductVariantController extends Controller
         $validated = $request->validated();
         $this->authorizeStoreAccess((string) $validated['store_id']);
         $product = $this->findProductForStore((int) $validated['product_id'], (string) $validated['store_id']);
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $product->store_id);
 
         $optionValueIds = Arr::pull($validated, 'option_value_ids', []);
         $variant = ProductVariant::query()->create($validated);
         $this->syncOptionValues($variant, $optionValueIds);
         $variant = $this->findForFrontend((int) $variant->id);
 
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
-            validated: $request->validated(),
-            storeId: (string) $product->store_id,
-            entityType: 'product_variant',
-            entityId: (string) $variant->id,
-            action: 'create',
-        );
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
+                validated: $request->validated(),
+                storeId: (string) $product->store_id,
+                entityType: 'product_variant',
+                entityId: (string) $variant->id,
+                action: 'create',
+            );
 
         return response()->json([
             'message' => 'Variant created successfully',
@@ -105,6 +108,7 @@ class ProductVariantController extends Controller
         $validated = $request->validated();
         $variant = $this->findVariant($id);
         $this->authorizeStoreAccess((string) $variant->store_id);
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $variant->store_id);
 
         $optionValueIdsProvided = Arr::exists($validated, 'option_value_ids');
         $optionValueIds = Arr::pull($validated, 'option_value_ids', []);
@@ -118,13 +122,13 @@ class ProductVariantController extends Controller
 
         $variant = $this->findForFrontend((int) $variant->id);
 
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
-            validated: $request->validated(),
-            storeId: (string) $variant->store_id,
-            entityType: 'product_variant',
-            entityId: (string) $variant->id,
-            action: 'update',
-        );
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
+                validated: $request->validated(),
+                storeId: (string) $variant->store_id,
+                entityType: 'product_variant',
+                entityId: (string) $variant->id,
+                action: 'update',
+            );
 
         return response()->json([
             'message' => 'Variant updated successfully',
@@ -152,15 +156,16 @@ class ProductVariantController extends Controller
         $this->authorizeStoreAccess((string) $variant->store_id);
         $storeId = (string) $variant->store_id;
         $entityId = (string) $variant->id;
+        $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, $storeId);
         $variant->delete();
 
-        $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
-            validated: $validated,
-            storeId: $storeId,
-            entityType: 'product_variant',
-            entityId: $entityId,
-            action: 'delete',
-        );
+        $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
+                validated: $validated,
+                storeId: $storeId,
+                entityType: 'product_variant',
+                entityId: $entityId,
+                action: 'delete',
+            );
 
         return response()->json([
             'message' => 'Variant deleted successfully',
