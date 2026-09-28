@@ -31,43 +31,52 @@ class LanguageRepository implements LanguageRepositoryInterface
 
     public function getActiveLanguages()
     {
-        return Cache::remember($this->cacheKey, 86400 * 30, function () {
+        return Cache::remember($this->cacheKey . '_active', 86400 * 30, function () {
             return $this->model::where("status", 1)->get();
         });
     }
 
     public function createLanguage(array $data)
     {
-        Cache::forget($this->cacheKey);
+        $this->forgetLanguageLists();
         $language = $this->model::create($data);
         $this->createLanguageFiles($language->slug);
         return $language;
     }
 
+    /**
+     * Adds or updates one word. A key that already lives in site.php (public
+     * website texts) is updated there; everything else goes to admin.php.
+     */
     public function addWordToAdminFile($slug, Request $request)
     {
         try {
-            $key = $request->input('key');
-            $translation = $request->input('value');
+            $key = trim((string) $request->input('key'));
+            $translation = (string) $request->input('value');
 
-            $adminFilePath = resource_path("lang/{$slug}/admin.php");
-
-            if (!File::exists(dirname($adminFilePath))) {
-                File::makeDirectory(dirname($adminFilePath), 0755, true);
+            if ($key === '' || ! $this->isValidSlug($slug)) {
+                return false;
             }
 
-            $adminData = [];
-
-            if (File::exists($adminFilePath)) {
-                $adminData = include $adminFilePath;
-                if (!is_array($adminData)) {
-                    $adminData = [];
-                }
+            $languageDir = resource_path("lang/{$slug}");
+            if (!File::exists($languageDir)) {
+                File::makeDirectory($languageDir, 0755, true);
             }
 
-            $adminData[$key] = $translation;
-            $phpCode = "<?php\n\nreturn " . var_export($adminData, true) . ";\n";
-            File::put($adminFilePath, $phpCode);
+            $siteData = $this->readLanguageFile("{$languageDir}/site.php");
+            $file = array_key_exists($key, $siteData) ? 'site' : 'admin';
+            $filePath = "{$languageDir}/{$file}.php";
+
+            $data = $file === 'site' ? $siteData : $this->readLanguageFile($filePath);
+            $data[$key] = $translation;
+
+            $phpCode = "<?php\n\nreturn " . var_export($data, true) . ";\n";
+            File::put($filePath, $phpCode);
+
+            // Opcache would otherwise keep serving the old array from `include`.
+            if (function_exists('opcache_invalidate')) {
+                opcache_invalidate($filePath, true);
+            }
 
             return true;
         } catch (\Exception $e) {
@@ -83,13 +92,13 @@ class LanguageRepository implements LanguageRepositoryInterface
             return null;
         }
 
+        // Both files are editable from the dashboard: site.php holds the public
+        // website texts, admin.php the dashboard texts.
         $combinedData = [];
-        $adminFilePath = "{$languageDir}/admin.php";
-        if (File::exists($adminFilePath)) {
-            $adminData = include $adminFilePath;
-            if (is_array($adminData)) {
-                foreach ($adminData as $key => $value) {
-                    $combinedData[] = ['key' => $key, 'value' => $value];
+        foreach (['site', 'admin'] as $file) {
+            foreach ($this->readLanguageFile("{$languageDir}/{$file}.php") as $key => $value) {
+                if (is_string($value)) {
+                    $combinedData[] = ['key' => $key, 'value' => $value, 'file' => $file];
                 }
             }
         }
@@ -99,7 +108,7 @@ class LanguageRepository implements LanguageRepositoryInterface
 
     public function updateLanguageStatus($id)
     {
-        Cache::forget($this->cacheKey);
+        $this->forgetLanguageLists();
         $language = $this->model::findOrFail($id);
         $language->update([
             'status' => $language->status == 1 ? 0 : 1,
@@ -110,7 +119,7 @@ class LanguageRepository implements LanguageRepositoryInterface
 
     public function deleteLanguage($id)
     {
-        Cache::forget($this->cacheKey);
+        $this->forgetLanguageLists();
         $language = $this->model::findOrFail($id);
         $language->delete();
 
@@ -124,7 +133,7 @@ class LanguageRepository implements LanguageRepositoryInterface
 
     public function deleteLanguages(array $ids)
     {
-        Cache::forget($this->cacheKey);
+        $this->forgetLanguageLists();
         $languages = $this->model::whereIn('id', $ids)->get();
         foreach ($languages as $language) {
             $slug = $language->slug;
@@ -138,6 +147,28 @@ class LanguageRepository implements LanguageRepositoryInterface
         }
 
         return true;
+    }
+
+    protected function forgetLanguageLists(): void
+    {
+        Cache::forget($this->cacheKey);
+        Cache::forget($this->cacheKey . '_active');
+    }
+
+    protected function isValidSlug($slug): bool
+    {
+        return (bool) preg_match('/^[A-Za-z]{2,3}([_-][A-Za-z]{2,4})?$/', (string) $slug);
+    }
+
+    protected function readLanguageFile(string $path): array
+    {
+        if (!File::exists($path)) {
+            return [];
+        }
+
+        $data = include $path;
+
+        return is_array($data) ? $data : [];
     }
 
     protected function createLanguageFiles($slug)

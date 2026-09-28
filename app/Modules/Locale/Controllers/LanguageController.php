@@ -67,7 +67,8 @@ class LanguageController extends Controller
 
         if (!empty($search)) {
             $items = $items->filter(function ($item) use ($search) {
-                return stripos($item['key'], $search) !== false;
+                return stripos($item['key'], $search) !== false
+                    || mb_stripos((string) $item['value'], $search) !== false;
             });
         }
 
