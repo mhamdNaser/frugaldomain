@@ -26,7 +26,7 @@ class SiteContactController extends Controller
             'user_agent' => (string) $request->userAgent(),
         ]);
 
-        $recipient = (string) env('CONTACT_RECEIVER_EMAIL', 'info@frugaldomain.online');
+        $recipient = (string) env('CONTACT_RECEIVER_EMAIL', 'info@collectify.sbs');
 
         try {
             Mail::to($recipient)->send(new ContactMessageSubmitted($message));

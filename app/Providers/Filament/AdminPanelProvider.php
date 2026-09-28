@@ -29,8 +29,13 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->authGuard('web')
+            ->brandName('Verdia')
+            ->brandLogo(asset('images/logo.svg'))
+            ->brandLogoHeight('2rem')
             ->colors([
-                'primary' => Color::Pink,
+                'primary' => Color::hex('#0F5B4A'),
+                'gray' => Color::Stone,
+                'warning' => Color::hex('#C8A24A'),
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')

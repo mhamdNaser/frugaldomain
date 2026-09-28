@@ -6,6 +6,7 @@ use Illuminate\Database\Seeder;
 use App\Modules\Locale\database\seeders\LanguageSeeder;
 use App\Modules\User\database\seeders\AdminSeeder;
 use App\Modules\User\database\seeders\RolePermissionSeeder;
+use App\Modules\User\database\seeders\VerdiaDemoSeeder;
 
 class DatabaseSeeder extends Seeder
 {
@@ -18,6 +19,7 @@ class DatabaseSeeder extends Seeder
             RolePermissionSeeder::class,
             AdminSeeder::class,
             LanguageSeeder::class,
+            VerdiaDemoSeeder::class,
         ]);
     }
 }

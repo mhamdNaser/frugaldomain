@@ -12,7 +12,7 @@ class LocaleController extends Controller
     {
         App::setLocale($lang);
 
-        $cacheKey = 'translations_all_' . $lang . '_v3';
+        $cacheKey = 'translations_all_' . $lang . '_v4';
 
         $payload = Cache::remember($cacheKey, 86400, function () use ($lang) {
             $adminPath = resource_path("lang/{$lang}/admin.php");

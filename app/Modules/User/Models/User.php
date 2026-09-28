@@ -8,7 +8,6 @@ use App\Modules\Locale\Models\City;
 use App\Modules\Locale\Models\Country;
 use App\Modules\Locale\Models\State;
 use App\Modules\Stores\Models\Store;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -19,9 +18,9 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasApiTokens, HasRoles, HasUuids;
-    public $incrementing = false;
-    protected $keyType = 'string';
+    // users.id is an auto-increment bigint (see create_users_table) and every
+    // foreign key to users is a bigint, so the model must not generate UUIDs.
+    use HasFactory, Notifiable, HasApiTokens, HasRoles;
 
     // If you are using UUIDs, you should set the $incrementing property to false and the $keyType property to 'string':
     // public $incrementing = false;
