@@ -23,16 +23,13 @@ class CreateStoreRequest extends FormRequest
      */
     public function rules(): array
     {
+        // The store's name, email, currency, timezone and Shopify id come from
+        // Shopify itself once the credentials are verified (StoreConnector).
         return [
-            'owner_id'              => 'required|integer',
-            'shopify_store_id'      => 'required|string|max:255',
-            'shopify_domain'        => 'required|string|max:255',
-            'shopify_access_token'  => 'required|string',
-            'shopify_webhook_secret'=> 'nullable|string',
-            'name'                  => 'required',
-            'email'                 => 'required|string|min:8',
-            'currency'              => 'required|string|max:255',
-            'timezone'              => 'required|string|max:255',
+            'owner_id'               => 'required|integer|exists:users,id',
+            'shopify_domain'         => 'required|string|max:255',
+            'shopify_access_token'   => 'required|string|max:255',
+            'shopify_webhook_secret' => 'nullable|string|max:255',
         ];
     }
 

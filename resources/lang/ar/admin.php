@@ -1273,4 +1273,9 @@ return [
     'Time' => 'الوقت',
     'Anonymous' => 'مجهول',
     'from' => 'من',
+    'Store owner' => 'صاحب المتجر',
+    'Verify & add store' => 'تحقق وأضف المتجر',
+    'The owner must be a store owner (partner) account.' => 'يجب أن يكون المالك حساب صاحب متجر.',
+    'This user already has a store.' => 'هذا المستخدم لديه متجر بالفعل.',
+    'Validation errors' => 'أخطاء في البيانات المدخلة',
 ];

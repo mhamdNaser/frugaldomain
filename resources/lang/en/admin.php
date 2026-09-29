@@ -1273,4 +1273,9 @@ return [
     'Time' => 'Time',
     'Anonymous' => 'Anonymous',
     'from' => 'from',
+    'Store owner' => 'Store owner',
+    'Verify & add store' => 'Verify & add store',
+    'The owner must be a store owner (partner) account.' => 'The owner must be a store owner (partner) account.',
+    'This user already has a store.' => 'This user already has a store.',
+    'Validation errors' => 'Validation errors',
 ];

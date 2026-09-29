@@ -4,9 +4,10 @@ namespace App\Modules\Stores\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Billing\Models\Subscription;
-use App\Modules\Billing\Services\FreePlanService;
 use App\Modules\Stores\Models\Store;
+use App\Modules\Stores\Services\MissingScopesException;
 use App\Modules\Stores\Services\ShopifyConnectionService;
+use App\Modules\Stores\Services\StoreConnector;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
@@ -22,7 +23,7 @@ class MyStoreController extends Controller
 {
     public function __construct(
         private ShopifyConnectionService $shopify,
-        private FreePlanService $freePlan,
+        private StoreConnector $connector,
     ) {}
 
     public function show(Request $request): JsonResponse
@@ -71,61 +72,17 @@ class MyStoreController extends Controller
             'shopify_webhook_secret' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $token = $data['shopify_access_token'] ?? null;
-        if (! $token && $existing?->shopify_access_token) {
-            $token = Crypt::decryptString($existing->shopify_access_token);
-        }
-
         try {
-            $check = $this->shopify->verify($data['shopify_domain'], (string) $token);
-        } catch (RuntimeException $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
+            $result = $this->connector->connect($user, $data, $existing);
+        } catch (MissingScopesException $e) {
+            return response()->json(['message' => $e->getMessage(), 'data' => $e->check], 422);
         }
-
-        if ($check['missing_required']) {
-            return response()->json([
-                'message' => 'The access token is missing permissions the import needs.',
-                'data' => $check,
-            ], 422);
-        }
-
-        $shop = $check['shop'];
-
-        $takenBy = Store::withTrashed()
-            ->where(fn ($q) => $q->where('shopify_domain', $shop['domain'])->orWhere('shopify_store_id', $shop['id']))
-            ->when($existing, fn ($q) => $q->where('id', '!=', $existing->id))
-            ->exists();
-        if ($takenBy) {
-            return response()->json(['message' => 'This Shopify store is already connected to another account.'], 422);
-        }
-
-        $store = DB::transaction(function () use ($user, $existing, $shop, $token, $data) {
-            $attributes = [
-                'owner_id' => $user->id,
-                'shopify_store_id' => $shop['id'],
-                'shopify_domain' => $shop['domain'],
-                'shopify_access_token' => Crypt::encryptString((string) $token),
-                'name' => $shop['name'],
-                'email' => $shop['email'],
-                'currency' => $shop['currency'],
-                'timezone' => $shop['timezone'],
-                'status' => 'active',
-            ];
-            if (filled($data['shopify_webhook_secret'] ?? null)) {
-                $attributes['shopify_webhook_secret'] = $data['shopify_webhook_secret'];
-            }
-
-            $store = $existing ?: new Store(['installed_at' => now()]);
-            $store->fill($attributes)->save();
-
-            $this->freePlan->subscribe($store);
-
-            return $store;
-        });
+        $store = $result['store'];
+        $check = $result['check'];
 
         return response()->json([
             'message' => $existing ? 'Store connection updated.' : 'Store connected successfully.',
-            'data' => $this->present($store->fresh()),
+            'data' => $this->present($store),
             'check' => $check,
         ], $existing ? 200 : 201);
     }

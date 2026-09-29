@@ -154,3 +154,40 @@ it('keeps the my-store endpoints away from super admins and guests', function ()
     $this->actingAs($admin)->getJson('/api/admin/my-store')->assertForbidden();
     $this->actingAs($this->owner)->getJson('/api/admin/my-store')->assertOk()->assertJsonPath('data', null);
 });
+
+it('lets the super admin add a store for a store owner using only the Shopify credentials', function () {
+    fakeShopify();
+    $admin = User::create([
+        'first_name' => 'A', 'last_name' => 'D', 'name' => 'admin',
+        'email' => 'admin@test.com', 'password' => 'x', 'status' => 1,
+    ]);
+    $admin->assignRole('admin');
+
+    // Owner must be a store owner...
+    $this->actingAs($admin)->postJson('/api/admin/store', [
+        'owner_id' => $admin->id,
+        'shopify_domain' => 'test-shop.myshopify.com',
+        'shopify_access_token' => 'shpat_secret',
+    ])->assertStatus(422)->assertJsonValidationErrors(['owner_id']);
+
+    $this->actingAs($admin)->postJson('/api/admin/store', [
+        'owner_id' => $this->owner->id,
+        'shopify_domain' => 'test-shop.myshopify.com',
+        'shopify_access_token' => 'shpat_secret',
+    ])->assertCreated();
+
+    $store = Store::firstOrFail();
+    expect($store->owner_id)->toBe($this->owner->id)
+        ->and($store->name)->toBe('Test Shop')
+        ->and($store->currency)->toBe('USD')
+        ->and(Subscription::where('store_id', $store->id)->count())->toBe(1);
+
+    // ...and only one store per owner; the owner list for the form excludes them now.
+    $this->actingAs($admin)->postJson('/api/admin/store', [
+        'owner_id' => $this->owner->id,
+        'shopify_domain' => 'test-shop.myshopify.com',
+        'shopify_access_token' => 'shpat_secret',
+    ])->assertStatus(422)->assertJsonValidationErrors(['owner_id']);
+
+    $this->actingAs($admin)->getJson('/api/admin/all-users?store_owners=1')->assertOk()->assertJsonCount(0);
+});

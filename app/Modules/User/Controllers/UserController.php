@@ -34,8 +34,18 @@ class UserController extends Controller
     }
 
 
-    public function all()
+    public function all(Request $request)
     {
+        // ?store_owners=1: store-owner accounts that have no store yet (Add store form).
+        if ($request->boolean('store_owners')) {
+            return response()->json(
+                \App\Modules\User\Models\User::role('partner')
+                    ->whereDoesntHave('store')
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'email'])
+            );
+        }
+
         $data =  $this->repos->all();
         return response()->json($data);
     }

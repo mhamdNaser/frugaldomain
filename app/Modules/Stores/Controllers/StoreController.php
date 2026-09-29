@@ -7,6 +7,11 @@ use App\Modules\Stores\Repositories\Interfaces\StoreRepositoryInterface;
 use App\Modules\Stores\Requests\CreateStoreRequest;
 use App\Modules\Stores\Requests\UpdateStoreRequest;
 use App\Modules\Stores\Resources\StoreResource;
+use App\Modules\Stores\Services\MissingScopesException;
+use App\Modules\Stores\Services\StoreConnector;
+use App\Modules\User\Models\User;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Http\Request;
 
 class StoreController extends Controller
@@ -38,10 +43,26 @@ class StoreController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(CreateStoreRequest $request)
+    public function store(CreateStoreRequest $request, StoreConnector $connector)
     {
         $data = $request->validated();
-        $store = $this->store->create($data);
+        $owner = User::findOrFail($data['owner_id']);
+
+        if (! $owner->hasRole('partner')) {
+            throw ValidationException::withMessages(['owner_id' => 'The owner must be a store owner (partner) account.']);
+        }
+        if ($owner->store()->exists()) {
+            throw ValidationException::withMessages(['owner_id' => 'This user already has a store.']);
+        }
+
+        try {
+            $store = $connector->connect($owner, $data)['store'];
+        } catch (MissingScopesException $e) {
+            return response()->json(['message' => $e->getMessage(), 'data' => $e->check], 422);
+        }
+
+        Cache::forget('all_Stores');
+
         return response()
             ->json([
                 'message' => 'Store created successfully',
