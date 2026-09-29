@@ -18,7 +18,7 @@ Route::prefix('admin')->group(function () {
     Route::middleware('auth:sanctum')->post('/password/change', [AuthController::class, 'changePassword']);
 
     Route::controller(AuthController::class)->group(function () {
-        Route::post('adminregister', 'register')->name('adminregister');
+        Route::post('adminregister', 'register')->middleware('throttle:10,1')->name('adminregister');
         Route::post('adminLogin', 'login')->name('adminLogin');
     });
 

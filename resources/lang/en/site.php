@@ -450,4 +450,9 @@ return [
     'terms_s8_title' => 'Availability and changes',
     'terms_s9_p1' => 'You may stop using Collectify and close your account at any time. We may suspend or terminate access if you breach these terms or if required to protect the Service or other users. After termination, your synced store data is deleted as described in our Privacy Policy.',
     'terms_s9_title' => 'Suspension and termination',
+    'auth_register_required' => 'Name, email and password are required',
+    'auth_password_min' => 'Password must be at least 8 characters',
+    'auth_password_mismatch' => 'Passwords do not match',
+    'auth_register_success' => 'Your account is ready. Welcome to Collectify!',
+    'auth_register_error' => 'We couldn\'t create your account. Please try again.',
 ];

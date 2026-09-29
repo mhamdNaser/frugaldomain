@@ -26,7 +26,25 @@ class AuthController extends Controller
      */
     public function register(RegisterRequest $request)
     {
-        $user = $this->users->create($request->validated());
+        $data = $request->validated();
+
+        // The form has one "full name" field; the users table keeps it split.
+        $parts = preg_split('/\s+/', trim($data['name']), 2);
+
+        $user = DB::transaction(function () use ($data, $parts) {
+            $user = User::create([
+                'first_name' => $parts[0],
+                'last_name' => $parts[1] ?? $parts[0],
+                'name' => $this->uniqueUsername($data['email']),
+                'email' => $data['email'],
+                'password' => Hash::make($data['password']),
+                'status' => 1,
+            ]);
+
+            $user->assignRole('partner');
+
+            return $user;
+        });
 
         // إنشاء توكن مباشر بعد التسجيل
         $token = $user->createToken('api_token')->plainTextToken;
@@ -223,5 +241,21 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Password reset successfully.',
         ]);
+    }
+
+    /**
+     * Username (users.name, unique) derived from the email: "naser@test.com" -> "naser",
+     * then "naser_2", "naser_3"... when taken.
+     */
+    private function uniqueUsername(string $email): string
+    {
+        $base = Str::slug(Str::before($email, '@'), '_') ?: 'user';
+        $username = $base;
+
+        for ($i = 2; User::where('name', $username)->exists(); $i++) {
+            $username = "{$base}_{$i}";
+        }
+
+        return $username;
     }
 }

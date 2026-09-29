@@ -24,10 +24,11 @@ class RegisterRequest extends FormRequest
     public function rules(): array
     {
         return [
+            // Public sign-up: every account created here is a store owner
+            // ("partner"), so no role can be requested by the client.
             'name'     => 'required|string|max:255',
-            'email'    => 'required|email|unique:users,email',
-            'password' => 'required|string|min:6',
-            'role'     => 'nullable|in:admin,user', // يسمح بإرسالها أو تجاهلها
+            'email'    => 'required|email|max:255|unique:users,email',
+            'password' => 'required|string|min:8|confirmed',
         ];
     }
 
