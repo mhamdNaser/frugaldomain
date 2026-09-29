@@ -57,6 +57,12 @@ class SyncRunTracker
             'updated_at' => now(),
         ]);
 
+        // The store's "last import" time shown to its owner.
+        $runStoreId = $storeId ?: DB::table('sync_runs')->where('id', $syncRunId)->value('store_id');
+        if ($runStoreId) {
+            DB::table('stores')->where('id', $runStoreId)->update(['last_synced_at' => now()]);
+        }
+
         if ($storeId && $type) {
             $this->updateMeta($storeId, $type, 'completed');
         }
