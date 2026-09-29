@@ -13,6 +13,8 @@ class StoreConnectionController extends Controller
 {
     public function status(string $id): JsonResponse
     {
+        $id = $this->allowedUserId($id);
+
         try {
             $shopData = $this->connectionStory($id);
 
@@ -41,6 +43,8 @@ class StoreConnectionController extends Controller
 
     public function SaveShopifyStoreDetails(string $id): JsonResponse
     {
+        $id = $this->allowedUserId($id);
+
         try {
             $shopData = $this->connectionStory($id);
 
@@ -105,6 +109,14 @@ class StoreConnectionController extends Controller
         }
     }
 
+    /** A store owner may only act on their own store; admins may pass any user id. */
+    private function allowedUserId(string $id): string
+    {
+        $auth = auth()->user();
+
+        return $auth && ! $auth->hasRole('admin') ? (string) $auth->id : $id;
+    }
+
     private function connectionStory(string $id): array
     {
         $user = User::with('store')->find($id);
@@ -122,7 +134,7 @@ class StoreConnectionController extends Controller
         $response = Http::withHeaders([
             'X-Shopify-Access-Token' => Crypt::decryptString($store->shopify_access_token),
             'Content-Type' => 'application/json',
-        ])->get("https://{$store->shopify_domain}/admin/api/2024-01/shop.json");
+        ])->get("https://{$store->shopify_domain}/admin/api/2026-04/shop.json");
 
         if (!$response->successful()) {
             throw new \RuntimeException(

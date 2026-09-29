@@ -29,7 +29,7 @@ class Store extends Model
         'email',
         'currency',
         'timezone',
-        'plan',
+        'plan_id',
         'status',
         'installed_at',
         'uninstalled_at',

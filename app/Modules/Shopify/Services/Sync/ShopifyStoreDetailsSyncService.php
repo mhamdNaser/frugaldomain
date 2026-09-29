@@ -53,7 +53,7 @@ class ShopifyStoreDetailsSyncService
             'Accept' => 'application/json',
             'Content-Type' => 'application/json',
         ])->get(sprintf(
-            'https://%s/admin/api/2026-01/shop.json',
+            'https://%s/admin/api/2026-04/shop.json',
             $this->normalizeDomain($store->shopify_domain)
         ));
 
