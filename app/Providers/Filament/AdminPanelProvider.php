@@ -29,7 +29,7 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->authGuard('web')
-            ->brandName('Verdia')
+            ->brandName('Collectify')
             ->brandLogo(asset('images/logo.svg'))
             ->brandLogoHeight('2rem')
             ->colors([
