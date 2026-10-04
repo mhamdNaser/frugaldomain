@@ -9,6 +9,7 @@ use App\Modules\Inventory\Requests\StoreInventoryRequest;
 use App\Modules\Inventory\Requests\UpdateInventoryRequest;
 use App\Modules\Inventory\Resources\InventoryDetailResource;
 use App\Modules\Inventory\Resources\InventoryTableResource;
+use App\Modules\Shopify\AutoSync\ShopifyAutoSync;
 use App\Modules\Shopify\OutboundSync\Services\LocalChangeOutboundSyncDispatcher;
 use App\Modules\Shopify\OutboundSync\Services\ShopifyFirstSyncService;
 
@@ -17,6 +18,7 @@ class InventoryController extends Controller
     public function __construct(
         protected InventoriesRepositoryInterface $repo,
         protected LocalChangeOutboundSyncDispatcher $outboundSyncDispatcher,
+        protected ShopifyAutoSync $shopifySync,
         protected ShopifyFirstSyncService $shopifyFirstSyncService,
     ) {}
 
@@ -59,7 +61,7 @@ class InventoryController extends Controller
     {
         $validated = $request->validated();
         $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $validated['store_id']);
-        $created = $this->repo->create($validated);
+        $created = $this->shopifySync->create(fn () => $this->repo->create($validated));
         $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $created->store_id,
@@ -71,7 +73,10 @@ class InventoryController extends Controller
         return response()->json([
             'message' => 'Inventory level created successfully',
             'data' => new InventoryDetailResource($created),
-            'meta' => ['outbound_sync_id' => $outboundSyncId],
+            'meta' => [
+                'outbound_sync_id' => $outboundSyncId,
+                'shopify_sync' => $this->shopifySync->report(),
+            ],
         ], 201);
     }
 
@@ -80,7 +85,11 @@ class InventoryController extends Controller
         $validated = $request->validated();
         $current = $this->repo->find((int) $id);
         $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $current->store_id);
-        $updated = $this->repo->update($id, $validated);
+        $updated = $this->shopifySync->update(
+            $this->repo->find($id),
+            array_keys($validated),
+            fn () => $this->repo->update($id, $validated),
+        );
         $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $updated->store_id,
@@ -92,7 +101,10 @@ class InventoryController extends Controller
         return response()->json([
             'message' => 'Inventory level updated successfully',
             'data' => new InventoryDetailResource($updated),
-            'meta' => ['outbound_sync_id' => $outboundSyncId],
+            'meta' => [
+                'outbound_sync_id' => $outboundSyncId,
+                'shopify_sync' => $this->shopifySync->report(),
+            ],
         ]);
     }
 
@@ -115,7 +127,7 @@ class InventoryController extends Controller
         $storeId = (string) $inventory->store_id;
         $entityId = (string) $inventory->id;
         $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, $storeId);
-        $this->repo->delete($id);
+        $this->shopifySync->delete($inventory, fn () => $this->repo->delete($id));
 
         $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
@@ -127,7 +139,10 @@ class InventoryController extends Controller
 
         return response()->json([
             'message' => 'Inventory level deleted successfully',
-            'meta' => ['outbound_sync_id' => $outboundSyncId],
+            'meta' => [
+                'outbound_sync_id' => $outboundSyncId,
+                'shopify_sync' => $this->shopifySync->report(),
+            ],
         ]);
     }
 }

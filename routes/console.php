@@ -35,3 +35,9 @@ $queues = implode(',', [
 Schedule::command("queue:work --queue={$queues} --stop-when-empty --max-time=50 --tries=3")
     ->everyMinute()
     ->withoutOverlapping(10);
+
+// Re-dispatches Shopify outbound pushes that are waiting for a retry
+// (e.g. Shopify was unreachable when a dashboard change was saved).
+Schedule::command('shopify:outbound-dispatch-due --limit=100')
+    ->everyMinute()
+    ->withoutOverlapping(5);

@@ -12,6 +12,7 @@ use App\Modules\Orders\Resources\OrderDetailResource;
 use App\Modules\Orders\Requests\UpdateOrderRequest;
 use App\Modules\Orders\Resources\OrderTableResource;
 use App\Modules\Orders\Services\AdminOrderShopifySyncService;
+use App\Modules\Shopify\AutoSync\ShopifyAutoSync;
 use App\Modules\Shopify\OutboundSync\Services\LocalChangeOutboundSyncDispatcher;
 use App\Modules\Shopify\OutboundSync\Services\ShopifyFirstSyncService;
 use App\Modules\Stores\Models\Store;
@@ -26,6 +27,7 @@ class OrderController extends Controller
     public function __construct(
         protected OrdersRepositoryInterface $repo,
         protected LocalChangeOutboundSyncDispatcher $outboundSyncDispatcher,
+        protected ShopifyAutoSync $shopifySync,
         protected ShopifyFirstSyncService $shopifyFirstSyncService,
         protected AdminOrderShopifySyncService $adminOrderShopifySyncService,
     ) {}
@@ -71,7 +73,11 @@ class OrderController extends Controller
         $validated = $request->validated();
         $current = $this->repo->find((int) $id);
         $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $current->store_id);
-        $updated = $this->repo->update((int) $id, $validated);
+        $updated = $this->shopifySync->update(
+            $this->repo->find((int) $id),
+            array_keys($validated),
+            fn () => $this->repo->update((int) $id, $validated),
+        );
         $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $updated->store_id,
@@ -85,6 +91,7 @@ class OrderController extends Controller
             'data' => new OrderTableResource($updated),
             'meta' => [
                 'outbound_sync_id' => $outboundSyncId,
+                'shopify_sync' => $this->shopifySync->report(),
             ],
         ]);
     }
@@ -113,7 +120,7 @@ class OrderController extends Controller
         ]);
 
         $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $validated['store_id']);
-        $created = $this->repo->create($validated);
+        $created = $this->shopifySync->create(fn () => $this->repo->create($validated));
         $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $created->store_id,
@@ -125,7 +132,10 @@ class OrderController extends Controller
         return response()->json([
             'message' => 'Order created successfully',
             'data' => new OrderDetailResource($created),
-            'meta' => ['outbound_sync_id' => $outboundSyncId],
+            'meta' => [
+                'outbound_sync_id' => $outboundSyncId,
+                'shopify_sync' => $this->shopifySync->report(),
+            ],
         ], 201);
     }
 
@@ -286,7 +296,7 @@ class OrderController extends Controller
         $storeId = (string) $order->store_id;
         $entityId = (string) $order->id;
         $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, $storeId);
-        $this->repo->delete((int) $id);
+        $this->shopifySync->delete($order, fn () => $this->repo->delete((int) $id));
 
         $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
@@ -298,7 +308,10 @@ class OrderController extends Controller
 
         return response()->json([
             'message' => 'Order deleted successfully',
-            'meta' => ['outbound_sync_id' => $outboundSyncId],
+            'meta' => [
+                'outbound_sync_id' => $outboundSyncId,
+                'shopify_sync' => $this->shopifySync->report(),
+            ],
         ]);
     }
 

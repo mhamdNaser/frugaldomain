@@ -39,6 +39,16 @@ class ShopifyConnectionService
         'read_themes',
         'write_products',
         'write_inventory',
+        // Pushing dashboard changes to Shopify (ShopifyAutoSync).
+        'write_publications',
+        'write_content',
+        'write_online_store_navigation',
+        'write_files',
+        'write_metaobjects',
+        'write_customers',
+        'write_discounts',
+        'write_shipping',
+        'write_orders',
     ];
 
     /**

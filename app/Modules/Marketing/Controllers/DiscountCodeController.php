@@ -7,6 +7,7 @@ use App\Modules\Marketing\Repositories\Interfaces\DiscountCodesRepositoryInterfa
 use App\Modules\Marketing\Requests\DiscountCodesIndexRequest;
 use App\Modules\Marketing\Requests\UpdateDiscountCodeRequest;
 use App\Modules\Marketing\Resources\DiscountCodeTableResource;
+use App\Modules\Shopify\AutoSync\ShopifyAutoSync;
 use App\Modules\Shopify\OutboundSync\Services\LocalChangeOutboundSyncDispatcher;
 use App\Modules\Shopify\OutboundSync\Services\ShopifyFirstSyncService;
 
@@ -15,6 +16,7 @@ class DiscountCodeController extends Controller
     public function __construct(
         protected DiscountCodesRepositoryInterface $repo,
         protected LocalChangeOutboundSyncDispatcher $outboundSyncDispatcher,
+        protected ShopifyAutoSync $shopifySync,
         protected ShopifyFirstSyncService $shopifyFirstSyncService,
     ) {}
 
@@ -59,7 +61,11 @@ class DiscountCodeController extends Controller
         $validated = $request->validated();
         $current = $this->repo->find((int) $id);
         $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $current->store_id);
-        $updated = $this->repo->update((int) $id, $validated);
+        $updated = $this->shopifySync->update(
+            $this->repo->find((int) $id),
+            array_keys($validated),
+            fn () => $this->repo->update((int) $id, $validated),
+        );
         $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $updated->store_id,
@@ -73,6 +79,7 @@ class DiscountCodeController extends Controller
             'data' => new DiscountCodeTableResource($updated),
             'meta' => [
                 'outbound_sync_id' => $outboundSyncId,
+                'shopify_sync' => $this->shopifySync->report(),
             ],
         ]);
     }
@@ -96,7 +103,7 @@ class DiscountCodeController extends Controller
         ]);
 
         $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $validated['store_id']);
-        $created = $this->repo->create($validated);
+        $created = $this->shopifySync->create(fn () => $this->repo->create($validated));
         $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $created->store_id,
@@ -108,7 +115,10 @@ class DiscountCodeController extends Controller
         return response()->json([
             'message' => 'Discount code created successfully',
             'data' => new DiscountCodeTableResource($created),
-            'meta' => ['outbound_sync_id' => $outboundSyncId],
+            'meta' => [
+                'outbound_sync_id' => $outboundSyncId,
+                'shopify_sync' => $this->shopifySync->report(),
+            ],
         ], 201);
     }
 
@@ -131,7 +141,7 @@ class DiscountCodeController extends Controller
         $storeId = (string) $code->store_id;
         $entityId = (string) $code->id;
         $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, $storeId);
-        $this->repo->delete((int) $id);
+        $this->shopifySync->delete($code, fn () => $this->repo->delete((int) $id));
 
         $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
@@ -143,7 +153,10 @@ class DiscountCodeController extends Controller
 
         return response()->json([
             'message' => 'Discount code deleted successfully',
-            'meta' => ['outbound_sync_id' => $outboundSyncId],
+            'meta' => [
+                'outbound_sync_id' => $outboundSyncId,
+                'shopify_sync' => $this->shopifySync->report(),
+            ],
         ]);
     }
 }

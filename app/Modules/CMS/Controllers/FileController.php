@@ -13,9 +13,12 @@ use App\Modules\CMS\Requests\FilesIndexRequest;
 use App\Modules\CMS\Requests\UploadShopifyFileRequest;
 use App\Modules\CMS\Resources\FileTableResource;
 use App\Modules\CMS\Services\ShopifyFileUploadService;
+use App\Modules\Shopify\AutoSync\ShopifyAutoSync;
+use App\Modules\Shopify\AutoSync\Syncers\FileMediaSyncer;
 use App\Modules\Shopify\Support\ShopifyHelper;
 use App\Modules\Stores\Models\Store;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -25,6 +28,8 @@ class FileController extends Controller
     public function __construct(
         protected FilesRepositoryInterface $repo,
         protected ShopifyFileUploadService $shopifyFileUploadService,
+        protected ShopifyAutoSync $shopifySync,
+        protected FileMediaSyncer $fileMediaSyncer,
     ) {}
 
     public function index(FilesIndexRequest $request)
@@ -95,6 +100,7 @@ class FileController extends Controller
         return response()->json([
             'message' => 'File uploaded to Shopify successfully.',
             'data' => new FileTableResource($localFile),
+            'meta' => ['shopify_sync' => $this->shopifySync->report()],
         ], 201);
     }
 
@@ -115,6 +121,7 @@ class FileController extends Controller
         return response()->json([
             'message' => 'File linked successfully.',
             'data' => new FileTableResource($updated),
+            'meta' => ['shopify_sync' => $this->shopifySync->report()],
         ]);
     }
 
@@ -217,6 +224,19 @@ class FileController extends Controller
 
         $this->authorizeStoreAccess($ownerStoreId);
 
+        return DB::transaction(function () use ($file, $owner, $ownerType, $role) {
+            $this->linkFileLocally($file, $owner, $ownerType, $role);
+            $this->shopifySync->run(
+                (string) $owner->store_id,
+                fn ($ctx) => $this->fileMediaSyncer->attach($file, $owner, $ctx),
+            );
+
+            return $file->fresh();
+        });
+    }
+
+    private function linkFileLocally(File $file, Model $owner, string $ownerType, ?string $role): void
+    {
         $file->fill([
             'fileable_type' => $owner::class,
             'fileable_id' => $owner->getKey(),
@@ -229,8 +249,6 @@ class FileController extends Controller
             $owner->image_alt = $file->altText ?: $owner->title;
             $owner->save();
         }
-
-        return $file->fresh();
     }
 
     private function resolveOwner(string $ownerType, int $ownerId): Model

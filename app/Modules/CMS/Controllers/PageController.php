@@ -8,6 +8,7 @@ use App\Modules\CMS\Repositories\Interfaces\PagesRepositoryInterface;
 use App\Modules\CMS\Requests\PagesIndexRequest;
 use App\Modules\CMS\Requests\UpdatePageRequest;
 use App\Modules\CMS\Resources\PageTableResource;
+use App\Modules\Shopify\AutoSync\ShopifyAutoSync;
 use App\Modules\Shopify\OutboundSync\Services\LocalChangeOutboundSyncDispatcher;
 use App\Modules\Shopify\OutboundSync\Services\ShopifyFirstSyncService;
 
@@ -18,6 +19,7 @@ class PageController extends Controller
     public function __construct(
         protected PagesRepositoryInterface $repo,
         protected LocalChangeOutboundSyncDispatcher $outboundSyncDispatcher,
+        protected ShopifyAutoSync $shopifySync,
         protected ShopifyFirstSyncService $shopifyFirstSyncService,
     ) {}
 
@@ -43,7 +45,11 @@ class PageController extends Controller
         $validated = $request->validated();
         $current = $this->repo->findForFrontend($id);
         $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $current->store_id);
-        $updated = $this->repo->update($id, $validated);
+        $updated = $this->shopifySync->update(
+            $current,
+            array_keys($validated),
+            fn () => $this->repo->update($id, $validated),
+        );
         $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $updated->store_id,
@@ -57,6 +63,7 @@ class PageController extends Controller
             'data' => new PageTableResource($updated),
             'meta' => [
                 'outbound_sync_id' => $outboundSyncId,
+                'shopify_sync' => $this->shopifySync->report(),
             ],
         ]);
     }
@@ -65,7 +72,7 @@ class PageController extends Controller
     {
         $validated = $request->validated();
         $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, (string) $validated['store_id']);
-        $created = $this->repo->create($validated);
+        $created = $this->shopifySync->create(fn () => $this->repo->create($validated));
         $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $created->store_id,
@@ -77,7 +84,10 @@ class PageController extends Controller
         return response()->json([
             'message' => 'Page created successfully',
             'data' => new PageTableResource($created),
-            'meta' => ['outbound_sync_id' => $outboundSyncId],
+            'meta' => [
+                'outbound_sync_id' => $outboundSyncId,
+                'shopify_sync' => $this->shopifySync->report(),
+            ],
         ], 201);
     }
 
@@ -100,7 +110,7 @@ class PageController extends Controller
         $storeId = (string) $page->store_id;
         $entityId = (string) $page->id;
         $shopifyExecuted = $this->shopifyFirstSyncService->syncOrFail($validated, $storeId);
-        $this->repo->delete($id);
+        $this->shopifySync->delete($page, fn () => $this->repo->delete($id));
 
         $outboundSyncId = $shopifyExecuted ? null : $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
@@ -112,7 +122,10 @@ class PageController extends Controller
 
         return response()->json([
             'message' => 'Page deleted successfully',
-            'meta' => ['outbound_sync_id' => $outboundSyncId],
+            'meta' => [
+                'outbound_sync_id' => $outboundSyncId,
+                'shopify_sync' => $this->shopifySync->report(),
+            ],
         ]);
     }
 }

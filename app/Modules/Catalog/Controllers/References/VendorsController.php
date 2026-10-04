@@ -7,6 +7,7 @@ use App\Modules\Catalog\Repositories\Interfaces\References\VendorsRepositoryInte
 use App\Modules\Catalog\Requests\References\UpdateVendorRequest;
 use App\Modules\Catalog\Requests\References\VendorsIndexRequest;
 use App\Modules\Catalog\Resources\References\VendorTableResource;
+use App\Modules\Shopify\AutoSync\ShopifyAutoSync;
 use App\Modules\Shopify\OutboundSync\Services\LocalChangeOutboundSyncDispatcher;
 
 class VendorsController extends Controller
@@ -14,6 +15,7 @@ class VendorsController extends Controller
     public function __construct(
         protected VendorsRepositoryInterface $repo,
         protected LocalChangeOutboundSyncDispatcher $outboundSyncDispatcher,
+        protected ShopifyAutoSync $shopifySync,
     ) {}
 
     public function index(VendorsIndexRequest $request)
@@ -54,7 +56,11 @@ class VendorsController extends Controller
     public function update(UpdateVendorRequest $request, $id)
     {
         $validated = $request->validated();
-        $updated = $this->repo->update((int) $id, $validated);
+        $updated = $this->shopifySync->update(
+            $this->repo->find((int) $id),
+            array_keys($validated),
+            fn () => $this->repo->update((int) $id, $validated),
+        );
         $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $updated->store_id,
@@ -66,7 +72,10 @@ class VendorsController extends Controller
         return response()->json([
             'message' => 'Vendor updated successfully',
             'data' => new VendorTableResource($updated),
-            'meta' => ['outbound_sync_id' => $outboundSyncId],
+            'meta' => [
+                'outbound_sync_id' => $outboundSyncId,
+                'shopify_sync' => $this->shopifySync->report(),
+            ],
         ]);
     }
 
@@ -93,7 +102,7 @@ class VendorsController extends Controller
             'shopify_sync.max_attempts' => ['nullable', 'integer', 'min:1', 'max:20'],
         ]);
 
-        $created = $this->repo->create($validated);
+        $created = $this->shopifySync->create(fn () => $this->repo->create($validated));
         $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $created->store_id,
@@ -105,7 +114,10 @@ class VendorsController extends Controller
         return response()->json([
             'message' => 'Vendor created successfully',
             'data' => new VendorTableResource($created),
-            'meta' => ['outbound_sync_id' => $outboundSyncId],
+            'meta' => [
+                'outbound_sync_id' => $outboundSyncId,
+                'shopify_sync' => $this->shopifySync->report(),
+            ],
         ], 201);
     }
 
@@ -127,7 +139,7 @@ class VendorsController extends Controller
         $vendor = $this->repo->find((int) $id);
         $storeId = (string) $vendor->store_id;
         $entityId = (string) $vendor->id;
-        $this->repo->delete((int) $id);
+        $this->shopifySync->delete($vendor, fn () => $this->repo->delete((int) $id));
 
         $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
@@ -139,7 +151,10 @@ class VendorsController extends Controller
 
         return response()->json([
             'message' => 'Vendor deleted successfully',
-            'meta' => ['outbound_sync_id' => $outboundSyncId],
+            'meta' => [
+                'outbound_sync_id' => $outboundSyncId,
+                'shopify_sync' => $this->shopifySync->report(),
+            ],
         ]);
     }
 

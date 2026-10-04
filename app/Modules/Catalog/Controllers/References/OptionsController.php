@@ -7,6 +7,7 @@ use App\Modules\Catalog\Repositories\Interfaces\References\OptionsRepositoryInte
 use App\Modules\Catalog\Requests\References\OptionsIndexRequest;
 use App\Modules\Catalog\Requests\References\UpdateOptionRequest;
 use App\Modules\Catalog\Resources\References\OptionTableResource;
+use App\Modules\Shopify\AutoSync\ShopifyAutoSync;
 use App\Modules\Shopify\OutboundSync\Services\LocalChangeOutboundSyncDispatcher;
 
 class OptionsController extends Controller
@@ -14,6 +15,7 @@ class OptionsController extends Controller
     public function __construct(
         protected OptionsRepositoryInterface $repo,
         protected LocalChangeOutboundSyncDispatcher $outboundSyncDispatcher,
+        protected ShopifyAutoSync $shopifySync,
     ) {}
 
     public function index(OptionsIndexRequest $request)
@@ -54,7 +56,11 @@ class OptionsController extends Controller
     public function update(UpdateOptionRequest $request, $id)
     {
         $validated = $request->validated();
-        $updated = $this->repo->update((int) $id, $validated);
+        $updated = $this->shopifySync->update(
+            $this->repo->find((int) $id),
+            array_keys($validated),
+            fn () => $this->repo->update((int) $id, $validated),
+        );
         $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $updated->store_id,
@@ -66,7 +72,10 @@ class OptionsController extends Controller
         return response()->json([
             'message' => 'Option updated successfully',
             'data' => new OptionTableResource($updated),
-            'meta' => ['outbound_sync_id' => $outboundSyncId],
+            'meta' => [
+                'outbound_sync_id' => $outboundSyncId,
+                'shopify_sync' => $this->shopifySync->report(),
+            ],
         ]);
     }
 
@@ -90,7 +99,7 @@ class OptionsController extends Controller
             'shopify_sync.max_attempts' => ['nullable', 'integer', 'min:1', 'max:20'],
         ]);
 
-        $created = $this->repo->create($validated);
+        $created = $this->shopifySync->create(fn () => $this->repo->create($validated));
         $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
             storeId: (string) $created->store_id,
@@ -102,7 +111,10 @@ class OptionsController extends Controller
         return response()->json([
             'message' => 'Option created successfully',
             'data' => new OptionTableResource($created),
-            'meta' => ['outbound_sync_id' => $outboundSyncId],
+            'meta' => [
+                'outbound_sync_id' => $outboundSyncId,
+                'shopify_sync' => $this->shopifySync->report(),
+            ],
         ], 201);
     }
 
@@ -124,7 +136,7 @@ class OptionsController extends Controller
         $option = $this->repo->find((int) $id);
         $storeId = (string) $option->store_id;
         $entityId = (string) $option->id;
-        $this->repo->delete((int) $id);
+        $this->shopifySync->delete($option, fn () => $this->repo->delete((int) $id));
 
         $outboundSyncId = $this->outboundSyncDispatcher->dispatchFromValidated(
             validated: $validated,
@@ -136,7 +148,10 @@ class OptionsController extends Controller
 
         return response()->json([
             'message' => 'Option deleted successfully',
-            'meta' => ['outbound_sync_id' => $outboundSyncId],
+            'meta' => [
+                'outbound_sync_id' => $outboundSyncId,
+                'shopify_sync' => $this->shopifySync->report(),
+            ],
         ]);
     }
 }
