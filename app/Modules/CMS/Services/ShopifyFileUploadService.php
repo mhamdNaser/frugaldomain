@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\Http;
 
 class ShopifyFileUploadService
 {
+    /** Shopify processes new files asynchronously; wait this long for the CDN URL. */
+    private const READY_TIMEOUT_SECONDS = 25;
+
     public function upload(Store $store, UploadedFile $file, ?string $title = null): array
     {
         $client = new ShopifyClient($store);
@@ -22,7 +25,40 @@ class ShopifyFileUploadService
             throw new \RuntimeException('Shopify returned an empty file payload after upload.');
         }
 
-        return $createdFile;
+        return $this->waitUntilReady($client, $createdFile);
+    }
+
+    /**
+     * fileCreate returns before Shopify has processed the file, so the image URL is still
+     * empty. Poll the file until it is READY (or FAILED) so the dashboard gets a real URL.
+     */
+    private function waitUntilReady(ShopifyClient $client, array $file): array
+    {
+        $id = (string) ($file['id'] ?? '');
+        $deadline = microtime(true) + self::READY_TIMEOUT_SECONDS;
+
+        while ($id !== '' && microtime(true) < $deadline) {
+            $node = $client->query($this->fileStatusQuery(), ['id' => $id])['data']['node'] ?? null;
+
+            if (!is_array($node)) {
+                break;
+            }
+
+            $status = $node['fileStatus'] ?? null;
+
+            if ($status === 'FAILED') {
+                $message = collect($node['fileErrors'] ?? [])->pluck('message')->filter()->implode(' | ');
+                throw new \RuntimeException($message ?: 'Shopify could not process this file.');
+            }
+
+            if ($status === 'READY') {
+                return $node;
+            }
+
+            usleep(1_000_000);
+        }
+
+        return $file;
     }
 
     private function createStagedUploadTarget(ShopifyClient $client, UploadedFile $file): array
@@ -149,6 +185,35 @@ mutation StagedUploadsCreate($input: [StagedUploadInput!]!) {
     userErrors {
       field
       message
+    }
+  }
+}
+GRAPHQL;
+    }
+
+    private function fileStatusQuery(): string
+    {
+        return <<<'GRAPHQL'
+query FileStatus($id: ID!) {
+  node(id: $id) {
+    __typename
+    ... on File {
+      id
+      alt
+      fileStatus
+      fileErrors { code message }
+    }
+    ... on MediaImage {
+      mimeType
+      image { url width height }
+    }
+    ... on GenericFile {
+      url
+      mimeType
+    }
+    ... on Video {
+      sources { url mimeType }
+      preview { image { url width height } }
     }
   }
 }

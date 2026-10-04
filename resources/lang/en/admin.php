@@ -1278,4 +1278,16 @@ return [
     'The owner must be a store owner (partner) account.' => 'The owner must be a store owner (partner) account.',
     'This user already has a store.' => 'This user already has a store.',
     'Validation errors' => 'Validation errors',
+    // Media upload to Shopify
+    'Upload from device' => 'Upload from device',
+    'Drop files here or click to upload to Shopify' => 'Drop files here or click to upload to Shopify',
+    'Images, videos, 3D models and documents up to 20 MB' => 'Images, videos, 3D models and documents up to 20 MB',
+    'Uploading {current}/{total} - {percent}%' => 'Uploading {current}/{total} - {percent}%',
+    'Processing in Shopify {current}/{total}...' => 'Processing in Shopify {current}/{total}...',
+    'File uploaded to Shopify successfully.' => 'File uploaded to Shopify successfully.',
+    '{count} files uploaded to Shopify.' => '{count} files uploaded to Shopify.',
+    '{name} is larger than 20 MB.' => '{name} is larger than 20 MB.',
+    'The upload took too long. Try a smaller file.' => 'The upload took too long. Try a smaller file.',
+    'The file is larger than the server allows.' => 'The file is larger than the server allows.',
+    'Failed to upload file.' => 'Failed to upload file.',
 ];

@@ -15,6 +15,7 @@ use App\Modules\CMS\Resources\FileTableResource;
 use App\Modules\CMS\Services\ShopifyFileUploadService;
 use App\Modules\Shopify\AutoSync\ShopifyAutoSync;
 use App\Modules\Shopify\AutoSync\Syncers\FileMediaSyncer;
+use App\Modules\Shopify\Exceptions\ShopifySyncException;
 use App\Modules\Shopify\Support\ShopifyHelper;
 use App\Modules\Stores\Models\Store;
 use Illuminate\Database\Eloquent\Model;
@@ -22,6 +23,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class FileController extends Controller
 {
@@ -75,17 +77,26 @@ class FileController extends Controller
         $validated = $request->validated();
         $store = $this->resolveStore($validated['store_id'] ?? null);
 
-        $shopifyFile = $this->shopifyFileUploadService->upload(
-            store: $store,
-            file: $request->file('file'),
-            title: $validated['title'] ?? null,
-        );
+        try {
+            $shopifyFile = $this->shopifyFileUploadService->upload(
+                store: $store,
+                file: $request->file('file'),
+                title: $validated['title'] ?? null,
+            );
+        } catch (\RuntimeException|ShopifySyncException $e) {
+            report($e);
+
+            throw ValidationException::withMessages([
+                'file' => 'Shopify upload failed: ' . $e->getMessage(),
+            ]);
+        }
 
         $localFile = $this->upsertLocalFile(
             store: $store,
             shopifyFile: $shopifyFile,
             fallbackMimeType: $request->file('file')?->getMimeType(),
             role: $validated['role'] ?? 'global_file',
+            size: $request->file('file')?->getSize(),
         );
 
         if (!empty($validated['owner_type']) && !empty($validated['owner_id'])) {
@@ -125,7 +136,7 @@ class FileController extends Controller
         ]);
     }
 
-    private function upsertLocalFile(Store $store, array $shopifyFile, ?string $fallbackMimeType = null, ?string $role = null): File
+    private function upsertLocalFile(Store $store, array $shopifyFile, ?string $fallbackMimeType = null, ?string $role = null, ?int $size = null): File
     {
         $sourceUrl = $this->extractUrl($shopifyFile);
         $mimeType = $this->extractMimeType($shopifyFile) ?: $fallbackMimeType;
@@ -149,6 +160,7 @@ class FileController extends Controller
                 'path' => $path,
                 'url' => $storageUrl,
                 'mime_type' => $mimeType,
+                'size' => $size,
                 'type' => $this->typeFromMimeAndTypename($mimeType, $shopifyFile['__typename'] ?? null),
                 'width' => $width,
                 'height' => $height,

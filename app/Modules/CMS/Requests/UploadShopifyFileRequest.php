@@ -15,7 +15,8 @@ class UploadShopifyFileRequest extends FormRequest
     {
         return [
             'store_id' => ['nullable', 'uuid'],
-            'file' => ['required', 'file', 'max:20480'],
+            // Formats Shopify accepts in Content > Files (images, videos, 3D models, documents).
+            'file' => ['required', 'file', 'max:20480', 'mimes:jpg,jpeg,png,gif,webp,heic,svg,mp4,mov,webm,glb,usdz,pdf,txt,csv,zip,doc,docx,xls,xlsx,ppt,pptx,json'],
             'title' => ['nullable', 'string', 'max:255'],
             'role' => ['nullable', 'string', 'max:120'],
             'owner_type' => ['nullable', 'in:product,variant,collection'],

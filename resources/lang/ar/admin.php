@@ -1278,4 +1278,16 @@ return [
     'The owner must be a store owner (partner) account.' => 'يجب أن يكون المالك حساب صاحب متجر.',
     'This user already has a store.' => 'هذا المستخدم لديه متجر بالفعل.',
     'Validation errors' => 'أخطاء في البيانات المدخلة',
+    // Media upload to Shopify
+    'Upload from device' => 'رفع من الجهاز',
+    'Drop files here or click to upload to Shopify' => 'اسحب الملفات هنا أو اضغط لرفعها إلى شوبيفاي',
+    'Images, videos, 3D models and documents up to 20 MB' => 'صور وفيديوهات ونماذج ثلاثية الأبعاد ومستندات حتى 20 ميغابايت',
+    'Uploading {current}/{total} - {percent}%' => 'جاري الرفع {current}/{total} - {percent}%',
+    'Processing in Shopify {current}/{total}...' => 'شوبيفاي يعالج الملف {current}/{total}...',
+    'File uploaded to Shopify successfully.' => 'تم رفع الملف إلى شوبيفاي بنجاح.',
+    '{count} files uploaded to Shopify.' => 'تم رفع {count} ملفات إلى شوبيفاي.',
+    '{name} is larger than 20 MB.' => 'حجم {name} أكبر من 20 ميغابايت.',
+    'The upload took too long. Try a smaller file.' => 'استغرق الرفع وقتاً طويلاً. جرّب ملفاً أصغر.',
+    'The file is larger than the server allows.' => 'حجم الملف أكبر من المسموح به على الخادم.',
+    'Failed to upload file.' => 'فشل رفع الملف.',
 ];
